@@ -1,0 +1,267 @@
+﻿ID,Name,Type,Cost,Abs. Cost,Element,Clause,Text,ATK,HP,Archetype,Tags
+001,Heat,Power,+1R,1,Fire,N/A,"Deal 1 dmg
+Draw 2",N/A,N/A,None,
+002,Flame,Power,+2R,2,Fire,N/A,"Deal 1 dmg
+Draw",N/A,N/A,None,
+003,Blaze,Power,+4R,4,Fire,N/A,Unplayable,N/A,N/A,None,
+004,Breath,Power,+1Y,1,Air,N/A,"Aerate 1
+Draw 2",N/A,N/A,None,
+005,Breeze,Power,+2Y,2,Air,N/A,"Aerate 1
+Draw",N/A,N/A,None,
+006,Gust,Power,+4Y,4,Air,N/A,Unplayable,N/A,N/A,None,
+007,Drop,Power,+1B,1,Water,N/A,"Peer 1
+Draw 2",N/A,N/A,None,
+008,Puddle,Power,+2B,2,Water,N/A,"Peer 1
+Draw",N/A,N/A,None,
+009,Lake,Power,+4B,4,Water,N/A,Unplayable,N/A,N/A,None,
+010,Pebble,Power,+1G,1,Earth,N/A,"Heal 1
+Draw 2",N/A,N/A,None,
+011,Rock,Power,+2G,2,Earth,N/A,"Heal 1
+Draw ",N/A,N/A,None,
+012,Boulder,Power,+4G,4,Earth,N/A,Unplayable,N/A,N/A,None,
+013,Ember,Spell,-1R,-1,Fire,N/A,"Deal 1 dmg
+Draw, Combo",N/A,N/A,Burn,
+014,FireFly,Minion,-1R,-1,Fire,N/A,"When this card dies, deal 1 dmg to one of your opponent's minions",2,1,Aristocrats,
+015,Flame Body,Trap,-1R,-1,Fire,When you take X dmg,"Shuffle X ""Burn"" into their deck",N/A,N/A,Burn,
+016,Ignite,Trap,-1R,-1,Fire,When your opponent plays a minion,Deal 2 dmg to that minion,N/A,N/A,Destruction,
+017,Scorch,Spell,-2R,-2,Fire,N/A,"Banish 1 card from your hand
+Deal 3 dmg",N/A,N/A,Burn,
+018,Fuel,Spell,-3R,-3,Fire,N/A,"Banish your hand
+Draw 5",N/A,N/A,Burn,
+019,Fire Storm,Spell,-2R,-2,Fire,N/A,"Banish 2 cards from your hand
+Deal 3 dmg to each of your opponent's minions",N/A,N/A,Destruction,
+020,Fire Spirit,Minion,-2R,-2,Fire,N/A,Initiative,3,1,Aggresive,
+021,Immolate,Spell,-2R,-2,Fire,N/A,"Discard 1 card from their field
+Exhort",N/A,N/A,Destruction,
+022,Flame-claw Beast,Minion,-2R,-2,Fire,N/A,"When this card would deal dmg to them, shuffle 3 ""Burn"" into their deck instead",2,3,Burn,
+023,Plume-maw,Minion,-3R,-3,Fire,N/A,"This card's ATK is equal to their missing HP
+Pierce 2",X,4,Aggresive,
+024,Mote,Minion,-1Y,-1,Air,N/A,"This card's name is treated as ""Dust""
+Combo",1,1,Dust Swarm,
+025,Dust Cloud,Trap,-1Y,-1,Air,When they attack you directly,"Create 2 ""Dust""",N/A,N/A,Dust Swarm,
+026,Recycle,Trap,-2Y,-2,Air,When 1 or more of your minions dies,Draw cards equal to the amount of your minions that died this turn,N/A,N/A,Dust Swarm,
+027,Stint,Trap,-1Y,-1,Air,When they play a card,"Look at their hand
+Draw 2",N/A,N/A,Stealing,
+028,Swoop,Spell,-1Y,-1,Air,N/A,"Aerate 1
+Bounce one of their minions w/ ATK ≤ the amount of ""Air"" in their discard",N/A,N/A,Air Matters,
+029,Immortal Soul,Minion,-2G,-2,Earth,N/A,"If this card would die, you may discard the top 2 cards from your discard to Bounce this card",2,2,Discard Recursion,
+030,Dust Storm,Spell,-2Y,-2,Air,N/A,"Shuffle all air in your opponent's discard into their deck
+Create ""Dust"" equal to the amount of ""Air"" shuffled this way",N/A,N/A,Dust Swarm,
+031,Yoink!,Spell,-2Y,-2,Air,N/A,"Look at their hand
+Steal 1 card from it",N/A,N/A,Stealing,
+032,Tornado,Minion,-3Y,-3,Air,N/A,"After combat, Banish 1 ""Air"" from their discard and Bounce their minion",0,4,Stealing,
+033,Updraft,Spell,-3Y,-3,Air,N/A,"Aerate 3
+Shuffle all ""Air"" in thier discard into their deck
+If 5+ ""Air"" were shuffled, also shuffle 1 of their minions into their deck",N/A,N/A,None,
+034,Jet-maw,Minion,-3Y,-3,Air,N/A,"This card's ATK is equal to the amount of ""Air"" in their discard
+When this card attacks, Aerate 1",X,4,Air Matters,
+035,Flush,Trap,-1B,-1,Water,When they attack,"Peer 2
+If a water card was discarded, cancel the attack
+Draw",N/A,N/A,Card Advantage,
+036,Slip,Trap,-1B,-1,Water,When they play a minion,Rest that minion and Freeze it,N/A,N/A,Rest-Mode,
+037,Chill,Spell,-1B,-1,Water,N/A,"Freeze one of their minions
+Draw, Combo",N/A,N/A,Rest-Mode,
+038,Ice Wisp,Minion,-1B,-1,Water,N/A,"When this card is discarded from your deck, you may play it
+Combo",1,1,Combo,
+039,Splash,Spell,-1B,-1,Water,N/A,"Rest one of their minions
+Draw, Combo",N/A,N/A,Rest-Mode,
+040,Chill Billy,Minion,-2B,-2,Water,N/A,"When this card blocks or is attacked, Freeze their minion",1,4,Rest-Mode,
+041,Think Ahead,Spell,-1B,-1,Water (Cut),N/A,"Peer 2, Draw
+Combo",N/A,N/A,Combo,Chopping Block
+042,Fluid Thought,Spell,-2B,-2,Water,N/A,"Draw 3, then discard 1 card from your hand
+Combo",N/A,N/A,Combo,
+043,Cryomancer,Minion,-3B,-3,Water,N/A,"Cannot block
+Deals double dmg to rested minions",2,4,Rest-Mode,
+044,Turn the Tide,Spell,-3B,-3,Water,N/A,"Both players discard their field
+Starting with you, taking turns with them, each of you may play a card from your hand that is not a power, trap or status until one of you doesn't
+Cards played this way do not trigger trap or combo phases
+Exhort",N/A,N/A,None,
+045,River-maw,Minion,-3B,-3,Water,N/A,This card's ATK is equal to your hand size minus 2,X,4,Card Advantage,
+046,Combat Medic,Minion,-1G,-1,Earth,N/A,"When this card attacks, Heal 1",1,2,Combat,
+047,Re-double,Spell,-1G,-1,Earth,N/A,"Banish 1 card from your discard
+Un-rest 1 of your minions",N/A,N/A,Combat,
+048,Fortify,Trap,-1G,-1,Earth (Cut),When they attack one of your minions,Heal 3 that minion,N/A,N/A,None,Cut
+049,Grave-digger,Minion,-1G,-1,Earth,N/A,"When this card takes dmg, discard the top card of your deck",1,2,Discard Recursion,
+050,Smother,Trap,-1G,-1,Earth,When they play a trap,"Discard that card, its effects do not happen",N/A,N/A,Discard Recursion,
+051,Stoneguard,Minion,-1G,-1,Earth,N/A,This card can block in rest mode,1,3,Heal/Fortress,
+052,Absorb,Trap,-2G,-2,Earth,When 1 of your minions would take X dmg,Heal X that minion instead,N/A,N/A,Heal/Fortress,
+053,Un-earth,Spell,-2G,-2,Earth,N/A,"Banish 2 card from your discard
+Put 1 creature from your discard onto your field
+Add 1 card from your discard to your hand",N/A,N/A,Discard Recursion,
+054,Inspiring Leader,Minion,-3G,-3,Earth,N/A,"When this card deals dmg to them, un-rest another one of your minions",3,4,Combat,
+055,Plant Wall,Minion,-1G,-1,Earth,N/A,"At the start of your turn, you may banish 1 card from your discard to Heal 1 this card
+When this card takes dmg, Draw",0,2,Heal/Fortress,
+056,Tremor-maw,Minion,-3G,-3,Earth,N/A,This card's ATK is equal to its HP,X,3,Heal/Fortress,
+057,Philosopher's Stone,Relic,-5W,-5,White,,You may play an additional card on each of your turns,N/A,N/A,None,
+058,Thief,Minion,-2Y,-2,Air,N/A,"When this card would deal dmg to them, you may Banish 1 card from your deck to look at their hand and Steal 1 card from it",3,2,Stealing,
+059,Wave dancer,Minion,-2B,-2,Water,N/A,"When you play a card, this card gets +1ATK this turn",0,4,Combo,
+060,Spearman,Minion,-1R,-1,Fire,N/A,Pierce 1,2,2,Aggresive,
+061,Blazing End,Trap,-2R,-2,Fire,When 1 of your minions dies,"Deal 2 dmg to each of their minions
+Shuffle 2 ""Burn"" into their deck",N/A,N/A,Aristocrats,
+062,Suffocate,Spell,-2Y,-2,Air,N/A,"Shuffle all ""Air"" in their discard into their deck
+Deal dmg to them equal to the amount of ""Air"" shuffled into their deck",N/A,N/A,Air Matters,
+063,Healing Waters,Trap,-2B,-2,Water,When X status's would be put into your deck,Draw X cards instead,N/A,N/A,Card Advantage,
+064,Bodyguard,Trap,-1G,-1,Earth,When they attack you directly,"Banish 1 card from your discard
+Play 1 Minion from your discard, its HP becomes 1",N/A,N/A,Discard Recursion,
+065,Healing Aura,Spell,-1G,-1,Earth,N/A,"Heal 1 each of your minions
+Draw, Combo",N/A,N/A,Heal/Fortress,
+066,Dust Monster,Minion,-1Y,-1,Air,N/A,"When this card is played, discard all ""Dust"" from your field
+This card's ATK and HP becomes equal to the amount of dust discarded",X,X,Dust Swarm,
+067,Poach,Trap,-1Y,-1,Air,When 1 of their minions dies,"Banish all ""Air"" from their discard
+If 3+ ""Air"" were banished this way, you may play that creature",N/A,N/A,Stealing,
+068,Hot Gremlin,Minion,-1R,-1,Fire,N/A,"When this card becomes blocked, shuffle 1 ""Burn"" into their deck
+Combo",2,2,Burn,
+069,Fill,Spell,-1B,-1,Water,N/A,"Heal 2, Draw 3",N/A,N/A,Card Advantage,
+070,Flash-freeze,Trap,-1B,-1,Water,When 1 of your minions dies from combat,Rest the minion that killed it and Freeze that minion,N/A,N/A,Combo,
+071,Flash,Spell,-3B,-3,Water,N/A,"Play a card from your hand
+Combo, Exhort",N/A,N/A,Combo,
+072,Librarian,Minion,-1B,-1,Water,N/A,"When this card is played and when it is discarded from the field, Draw
+Combo",1,3,Card Advantage,
+073,Wave Spirit,Minion,-2B,-2,Water,N/A,"When you Draw, this card gets +1ATK this turn",0,3,Card Advantage,
+074,Cold Snap,Trap,-2B,-2,Water,When your opponent starts their turn,Rest all your opponent's creatures,N/A,N/A,Rest-Mode,
+075,Wave Dweller,Minion,-2B,-2,Water,N/A,"When you discard from your hand, this card gets +1ATK this turn",0,4,Discard Value,
+076,Crushing Current,Trap,-2B,-2,Water,When 1 of your minions enters combat,"Discard any amount of cards from your hand, your minion gets +1ATK this turn for each card discarded",N/A,N/A,Discard Value,
+077,Refresh,Spell,-1B,-1,Water,N/A,"Draw 3
+Discard 2 cards from your hand
+Combo",N/A,N/A,Discard Value,
+078,Water Spirit,Minion,-1B,-1,Water,N/A,"When you discard this card from your hand, you may play it",0,1,Discard Value,
+079,Gulping Toad,Minion,-1B,-1,Water,N/A,"When you discard from your hand, Heal 1
+Combo",1,3,Discard Value,
+080,Turtle Wave Attack,Spell,-3B,-3,Water,N/A,"Discard your hand
+Deal dmg equal to the amount of cards discarded",N/A,N/A,Discard Value,
+081,Consuming Spirit,Minion,-2R,-2,Fire,N/A,"When another of your minions die, Heal 1 this card",3,1,Aristocrats,
+082,Inferno,Spell,-3R,-3,Fire,N/A,Deal 4 dmg to every minion,N/A,N/A,None,
+083,Flaming Wisp,Minion,-1R,-1,Fire,N/A,"When this card dies, you may banish 1 card from your hand to play this card
+Combo",0,1,Aristocrats,
+084,Demon,Minion,-3R,-3,Fire,N/A,"When this card attacks, you may discard another minion from your field to deal 2 dmg",2,3,Aristocrats,
+085,Dwindling Flame,Spell,-1R,-1,Fire,N/A,"Draw
+If 3+ minions died this turn, Draw 2 and deal 1 dmg",N/A,N/A,Aristocrats,
+086,Flashover,Trap,-1R,-1,Fire,When your opponent takes X dmg,Deal X dmg to one of their minions,N/A,N/A,Aggresive,
+087,Stoke,Trap,-2R,-2,Fire,When your opponent takes X dmg,Draw X,N/A,N/A,Aggresive,
+088,Flame Runner,Minion,-1R,-1,Fire,N/A,"Initiative, Combo",1,2,Aggresive,
+089,Pyromancer,Minion,-3R,-3,Fire,N/A,Deals double dmg to un-rested minions,2,4,Destruction,
+090,Mad Zealot,Minion,-1R,-1,Fire,N/A,"When a minion dies, deal 1 dmg to your opponent",1,3,Destruction,
+091,Burn Soul,Trap,-1R,-1,Fire,When 1 of your opponent's minions dies,Draw equal to that minion's ATK,N/A,N/A,Destruction,
+092,Ambush,Trap,-1G,-1,Earth,When your opponent plays a minion,"Un-rest one of your minions, it attacks their minion",N/A,N/A,Combat,
+093,Veteran Trainer,Minion,-2G,-2,Earth,N/A,"When this card attacks, Add 1 ""Strength"" to your hand",2,3,Combat,
+094,Flex,Spell,-2G,-2,Earth,N/A,"Shuffle 5 ""Strength"" into your deck
+Draw 2, Combo",N/A,N/A,Combat,
+095,Body Slam,Spell,-2G,-2,Earth,N/A,"Discard 1 minion from your field
+Deal dmg equal to that minion's HP",N/A,N/A,Heal/Fortress,
+096,Necro-mancer,Minion,-3G,-3,Earth,N/A,"When this card attacks a minion, play a minion from your discard and it gains Initiative this turn",0,4,Discard Recursion,
+097,Poison Toad,Minion,-1G,-1,Earth,N/A,"When this card takes dmg, Shuffle 1 ""Poison"" into their deck",1,2,Poison,
+098,Envenom,Spell,-1G,-1,Earth,N/A,"Banish 1 card from your discard
+Shuffle 2 ""Poison"" into their deck
+Draw, Combo",N/A,N/A,Poison,
+099,Witchdoctor,Minion,-2G,-2,Earth,N/A,"When they play ""Poison"", Heal 1 this card and it gains +1ATK",1,2,Poison,
+100,SIckly Touch,Trap,-2G,-2,Earth,When they play a card that would affect exactly one of your minions,"Discard that card, its effects do not happen
+Shuffle 1 ""Poison"" into their deck",N/A,N/A,Poison,
+101,Mosquito,Minion,-1G,-1,Earth,N/A,"When they play ""Poison"", you may play this card from your discard
+Combo",1,1,Poison,
+102,The Monster,Minion,-3G,-3,Earth,N/A,"When they play ""Poison"", Draw
+When this card is blocked, Shuffle 1 ""Poison"" into thier deck",3,4,Poison,
+103,Aftershock,Trap,-3G,-3,Earth,When 1 of your minions dies,Deal dmg equal to that minions ATK to all their minions,N/A,N/A,None,
+104,Fortune-Teller,Minion,-1B,-1,Water,N/A,"When this card is played, Peer 3
+Combo",1,3,Combo,
+105,Pulvemancer,Minion,-3Y,-3,AIr,N/A,"When this card attacks, you may banish 1 card from your deck to Create 2 ""Dust"" that gain Initiative this turn",1,4,Dust Swarm,
+106,Pan-handle,Spell,-1Y,-1,Air,N/A,"Steal 1 card of your opponent's choice from their hand, then they Draw
+Combo",N/A,N/A,Stealing,
+107,Baby Roc,Minion,-1Y,-1,Air,N/A,"When this card attacks, Aerate 1
+Initiative, Combo",1,3,Air Matters,
+108,Soothing Wind,Trap,-1Y,-1,Air,"When they play ""Air""",Heal 1 each of your minions and yourself,N/A,N/A,Air Matters,
+109,Bird Tamer,Minion,-2Y,-2,Air,N/A,"When you play this card, Aerate 2
+When your opponent plays ""Air"", Draw",2,3,Air Matters,
+110,Ghost-form,Spell,-3Y,-3,Air,N/A,"Shuffle 3 ""Dodge"" into your deck
+Draw, Exhort",N/A,N/A,Banish Benefit,
+111,Meditating Monk,Minion,-1Y,-1,Air,N/A,"When you banish a card, Heal 1",1,2,Banish Benefit,
+112,Monastary Protector,Minion,-2Y,-2,AIr,N/A,"When you banish a card, Deal 1 dmg",2,3,Banish Benefit,
+113,Evade,Trap,-1Y,-1,AIr,When 1 of your opponent's minions attacks,"Banish 1 card from your deck
+Cancel the attack",N/A,N/A,Banish Benefit,
+114,Focus,Spell,-2Y,-2,AIr,N/A,"Shuffle 3 ""Clarity"" into your deck
+Combo",N/A,N/A,Banish Benefit,
+115,Puff,Spell,-1Y,-1,AIr,N/A,"Create 2 ""Dust""
+Combo, Exhort",N/A,N/A,Banish Benefit,
+116,,,,#VALUE!,,,,,,,
+117,,,,#VALUE!,,,,,,,
+118,,,,#VALUE!,,,,,,,
+119,,,,#VALUE!,,,,,,,
+120,,,,#VALUE!,,,,,,,
+121,,,,#VALUE!,,,,,,,
+122,,,,#VALUE!,,,,,,,
+123,,,,#VALUE!,,,,,,,
+124,,,,#VALUE!,,,,,,,
+125,,,,#VALUE!,,,,,,,
+126,,,,#VALUE!,,,,,,,
+127,,,,#VALUE!,,,,,,,
+128,,,,#VALUE!,,,,,,,
+129,,,,#VALUE!,,,,,,,
+130,,,,#VALUE!,,,,,,,
+131,,,,#VALUE!,,,,,,,
+132,,,,#VALUE!,,,,,,,
+133,,,,#VALUE!,,,,,,,
+134,,,,#VALUE!,,,,,,,
+135,,,,#VALUE!,,,,,,,
+136,,,,#VALUE!,,,,,,,
+137,,,,#VALUE!,,,,,,,
+138,,,,#VALUE!,,,,,,,
+139,,,,#VALUE!,,,,,,,
+140,,,,#VALUE!,,,,,,,
+141,,,,#VALUE!,,,,,,,
+142,,,,#VALUE!,,,,,,,
+143,,,,#VALUE!,,,,,,,
+144,,,,#VALUE!,,,,,,,
+145,,,,#VALUE!,,,,,,,
+146,,,,#VALUE!,,,,,,,
+147,,,,#VALUE!,,,,,,,
+148,,,,#VALUE!,,,,,,,
+149,,,,#VALUE!,,,,,,,
+150,,,,#VALUE!,,,,,,,
+151,,,,#VALUE!,,,,,,,
+152,,,,#VALUE!,,,,,,,
+153,,,,#VALUE!,,,,,,,
+154,,,,#VALUE!,,,,,,,
+155,,,,#VALUE!,,,,,,,
+156,,,,#VALUE!,,,,,,,
+157,,,,#VALUE!,,,,,,,
+158,,,,#VALUE!,,,,,,,
+159,,,,#VALUE!,,,,,,,
+160,,,,#VALUE!,,,,,,,
+161,,,,#VALUE!,,,,,,,
+162,,,,#VALUE!,,,,,,,
+163,,,,#VALUE!,,,,,,,
+164,,,,#VALUE!,,,,,,,
+165,,,,#VALUE!,,,,,,,
+166,,,,#VALUE!,,,,,,,
+167,,,,#VALUE!,,,,,,,
+168,,,,#VALUE!,,,,,,,
+169,,,,#VALUE!,,,,,,,
+170,,,,#VALUE!,,,,,,,
+171,,,,#VALUE!,,,,,,,
+172,,,,#VALUE!,,,,,,,
+173,,,,#VALUE!,,,,,,,
+174,,,,#VALUE!,,,,,,,
+175,,,,#VALUE!,,,,,,,
+176,,,,#VALUE!,,,,,,,
+177,,,,#VALUE!,,,,,,,
+178,,,,#VALUE!,,,,,,,
+179,,,,#VALUE!,,,,,,,
+180,,,,#VALUE!,,,,,,,
+181,,,,#VALUE!,,,,,,,
+182,,,,#VALUE!,,,,,,,
+183,,,,#VALUE!,,,,,,,
+184,,,,#VALUE!,,,,,,,
+185,,,,#VALUE!,,,,,,,
+186,,,,#VALUE!,,,,,,,
+187,,,,#VALUE!,,,,,,,
+188,,,,#VALUE!,,,,,,,
+189,,,,#VALUE!,,,,,,,
+190,,,,#VALUE!,,,,,,,
+191,,,,#VALUE!,,,,,,,
+192,,,,#VALUE!,,,,,,,
+193,,,,#VALUE!,,,,,,,
+194,,,,#VALUE!,,,,,,,
+195,,,,#VALUE!,,,,,,,
+196,,,,#VALUE!,,,,,,,
+197,,,,#VALUE!,,,,,,,
+198,,,,#VALUE!,,,,,,,
+199,,,,#VALUE!,,,,,,,
