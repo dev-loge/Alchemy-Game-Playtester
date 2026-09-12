@@ -2,8 +2,8 @@ import random
 from enum import Enum
 
 #from card.card import Card
-from card.card import Minion
-from player import Player
+from game_parts.card import Minion
+from game_parts.player import Player
 
 
 def describe_minion(minion):
@@ -226,22 +226,6 @@ class Game:
         if event != ResponseEvent.CARD_PLAYED:
             self.original_phase = None
         return False
-
-    def trap_clause_dictionary(self, trap, event, event_player, event_data):
-
-        if trap.name == "Ignite":
-            played_card = getattr(event_data, "card", None)
-
-            return (
-                event == ResponseEvent.CARD_PLAYED
-                and played_card is not None
-                and played_card.type == "Minion"
-                and played_card.owner != trap.owner
-            )
-
-        # End Directory
-        return True
-
 
     def take_damage(self, source, target, amount):
         if hasattr(target, 'hp'):

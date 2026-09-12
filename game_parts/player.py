@@ -1,3 +1,5 @@
+from db.trap_clause_db import trap_clause_check
+
 class Player:
     def __init__(self, name):
         self.name = name
@@ -65,7 +67,7 @@ class Player:
             if card.type == "Reaction"
             or (
                 card.type == "Trap"
-                and game.trap_clause_dictionary(
+                and trap_clause_check(
                     card, 
                     event, 
                     event_player, 

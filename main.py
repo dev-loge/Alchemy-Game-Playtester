@@ -1,15 +1,15 @@
 from pathlib import Path
 
-from game import Game
-from player import Player
-from card.card_loader import load_cards
-from card.card_database import CardDatabase
-from deck import Deck
+from game_parts.game import Game
+from game_parts.player import Player
+from imports.cards.card_loader import load_cards
+from db.card_db import CardDatabase
+from game_parts.deck import Deck
 
 player1 = Player("Player 1")
 player2 = Player("Player 2")
 
-cards = load_cards(Path(__file__).parent / "card" / "card_list.csv")
+cards = load_cards(Path(__file__).parent / "imports" / "cards" / "card_list.csv")
 print(f"Loaded {len(cards)} cards.")
 db = CardDatabase(cards)
 
