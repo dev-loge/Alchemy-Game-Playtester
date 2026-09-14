@@ -11,7 +11,7 @@ class Card:
         self.text = text
         self.owner = None
         self.effects = []
-        
+        self.trigger_target = None
 
     def create_instance(self):
         return copy.deepcopy(self)
@@ -37,7 +37,6 @@ class Trap(Card):
     def __init__(self, id, name, type, element, cost, text, clause):
         super().__init__(id, name, type, element, cost, text)
         self.clause = clause
-        self.trigger_target = None
 
 class Minion(Card):
     def __init__(self, id, name, type, element, cost, text, atk, hp):
@@ -51,16 +50,18 @@ class Minion(Card):
         if self.owner is None:
             return
 
-        # remove from field
-        self.owner.remove_from_field(self)
+        if game is None:
+            game = getattr(self.owner, 'game', None)
+
+        # remove from field; owner and current controller can differ (e.g.
+        # opponent-owned cards played from your hand)
+        controller = game.field_controller(self) if game is not None else self.owner
+        controller.remove_from_field(self)
 
         if 'Vanishing' in self.text:
             self.owner.add_to_banish(self)
         else:
             self.owner.add_to_discard(self)
-
-        if game is None:
-            game = getattr(self.owner, 'game', None)
 
         # trigger death effects
         if game is not None:

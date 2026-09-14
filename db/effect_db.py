@@ -1,6 +1,5 @@
 from game_parts.card import Effect
-from game_parts.effects import deal_damage, heal, draw_cards, peer, aerate
-
+from game_parts.effects import deal_damage, heal, draw_cards, peer, aerate, poison, burn, frost, play_card
 
 def when(trigger, resolver):
 	if isinstance(resolver, Effect):
@@ -22,8 +21,18 @@ effects_by_name = {
 	"Breath": (when('resolve', aerate(1)), when('resolve', draw_cards(2))),
 	"Breeze": (when('resolve', aerate(1)), when('resolve', draw_cards(1))),
 	"Gust": (),
-	# Cards
+	# TEST Cards
 	"Ember": (when('resolve', deal_damage(1)), when('resolve', draw_cards(1))),
 	"FireFly": (when('dies', deal_damage(1, target_filter="minion_only")),),
 	"Ignite": (when('resolve', deal_damage(2, target_filter="trigger_target")),),
+	# Status Effects
+	"Burn": (when('draw', deal_damage(1, target_filter="self")),),
+	"Frost": (when('resolve', draw_cards(1)), when('end_turn', play_card())),
+	"Poison": (when('resolve', deal_damage(1, target_filter="self")), when('resolve', draw_cards(1))),
+	# Cards
+	"Witchdoctor": (when('card_played:Poison', heal(1)),),
+	"Basking Lizard": (when('card_played:Burn', heal(1)),),
+	"Snowgrazer": (when('card_played:Frost', heal(1)),),
+	"Bird Tamer": (when('card_played:Air', heal(1)),),
+	"Venemous Snake": (when('deals_damage', poison(1, target_filter="trigger_target")),)
 }

@@ -18,6 +18,7 @@ class Game:
         self.pile = []
         self.priority_player = None
         self.original_phase = None
+        self.card_types = ['Minion', 'Relic', 'Spell', 'Trap', 'Power', 'Status', 'Reaction']
 
     def start(self):
         random.shuffle(self.players)
@@ -43,6 +44,14 @@ class Game:
             return self.players[(self.players.index(player) + 1) % len(self.players)]
         return self.players[1 - self.players.index(player)]
 
+    def field_controller(self, card):
+        # a card's owner and its current controller can differ (e.g. opponent-owned
+        # cards played from your hand), so look up whoever actually has it on their field
+        for player in self.players:
+            if card in player.field:
+                return player
+        return card.owner
+
     def start_turn(self):
         self.priority_player = self.active_player
 
@@ -65,7 +74,12 @@ class Game:
         self.phase = Phase.END
         self.active_player.power_played = None
         self.active_player.non_power_played = None
-        #end turn actions for the active player's field
+        #end turn actions for the active player (in all zones) then inactive player
+        for player in self.players:
+            for card in player.field + player.hand + player.discard:
+                for effect in card.effects:
+                    if effect.trigger == 'end_turn':
+                        effect.resolve(self, card)
 
         self.turn += 1
         self.start_turn(); #Immediatley start the next turn
@@ -137,6 +151,25 @@ class Game:
 
         # Build Pile
         self.pile.append(card)
+
+        # Activate any "card_played" triggered effects of cards on the field
+        # Active player's field gets triggered first, then inactive player's field.
+        for player in [self.active_player, self.inactive_player]:
+            for field_card in player.field:
+                for effect in getattr(field_card, 'effects', []):
+                    if effect.trigger.startswith('card_played'):
+                        # sometimes effects may have additional conditions (ex.'card_played:name of a card' or 'card_played:type of a card')
+                        if ':' in effect.trigger:
+                            _, condition = effect.trigger.split(':', 1)
+                            if condition in self.card_types:
+                                if condition != card.type:
+                                    continue
+                            else:
+                                if condition != card.name:
+                                    continue
+
+                        effect.resolve(self, card)
+
         
         if self.original_phase is None:
             self.original_phase = self.phase
@@ -172,7 +205,7 @@ class Game:
                         effect.resolve(self, card)
                 
                 # Determine destination
-                card.owner.remove_from_field(card)
+                self.field_controller(card).remove_from_field(card)
                 if card.type == 'Spell' or card.type == 'Trap' or card.type == 'Power':
                     if 'Exhort' in card.text:
                         print(f'Card {card.name} exhorted')
@@ -230,6 +263,19 @@ class Game:
     def take_damage(self, source, target, amount):
         if hasattr(target, 'hp'):
             target.hp -= amount
+
+            # trigger source's 'deals_damage' effects, trigger_target is the damaged target
+            source.trigger_target = target
+            for effect in getattr(source, 'effects', []):
+                if effect.trigger == 'deals_damage':
+                    effect.resolve(self, source, target=target)
+
+            # trigger target's 'takes_damage' effects, trigger_target is the source of the damage
+            target.trigger_target = source
+            for effect in getattr(target, 'effects', []):
+                if effect.trigger == 'takes_damage':
+                    effect.resolve(self, target, target=source)
+
         else:
             print(f"Target {target} does not have HP and cannot take damage.")
 
@@ -246,11 +292,12 @@ class Game:
         self.take_damage(defender, attacker, defender.atk)
 
     def minion_attack(self, minion, target):
-        if minion.owner != self.active_player:
+        controller = self.field_controller(minion)
+        if controller != self.active_player:
             print(f"Only {self.active_player.name}'s minions can attack this turn.")
             return False
 
-        defending_player = self.other_player(minion.owner)
+        defending_player = self.other_player(controller)
         print(f"{minion.name} attacks {target.name}")
         minion.rested = True
 
@@ -279,7 +326,7 @@ class Game:
         if isinstance(target, Minion):
             self.combat(minion, target)
         elif isinstance(target, Player):
-            target.hp -= minion.atk
+            self.take_damage(minion, target, minion.atk)
 
         return True
 

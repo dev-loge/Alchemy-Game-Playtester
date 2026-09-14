@@ -1,3 +1,4 @@
+from Alchemy.game_parts import game
 from db.trap_clause_db import trap_clause_check
 
 class Player:
@@ -23,6 +24,11 @@ class Player:
         card = self.deck.draw()
         if card:
             self.hand.append(card)
+            # some cards have effects that trigger when drawn
+            for effect in getattr(card, 'effects', []):
+                if effect.trigger == 'draw':
+                    effect.resolve(game, card)
+
         return card
 
     def remove_from_hand(self, card):
@@ -71,7 +77,8 @@ class Player:
                     card, 
                     event, 
                     event_player, 
-                    event_data
+                    event_data,
+                    self
                 )
             )
         ]

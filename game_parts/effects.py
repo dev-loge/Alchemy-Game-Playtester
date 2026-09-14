@@ -1,42 +1,16 @@
 from .card import Effect, Minion, Status
 
-# Status Factory
-_STATUS_COUNTER = 10000
-
-def next_status_id():
-    global _STATUS_COUNTER
-    _STATUS_COUNTER += 1
-    return _STATUS_COUNTER
-
-def create_status_card(owner, name, type='Status', text='', element='', zone='', effects=()):
-    status = Status(
-        next_status_id(),
-        name,
-        "Status",
-        element,
-        "0",
-        text,
-    )
-    status.set_owner(owner)
-
-    for effect in effects:
-        status.add_effect(effect)
-
-    method_name = f"add_to_{zone}"
-    if hasattr(owner, method_name):
-        getattr(owner, method_name)(status)
-    else:
-        raise ValueError(f"Invalid zone '{zone}' for status card.")
-
-    return status
+def _owner_of(entity):
+    return getattr(entity, 'owner', entity)
 
 # filter registry
 TARGET_FILTERS = {
     "minion_only": lambda target: isinstance(target, Minion),
     "player_only": lambda target: hasattr(target, 'hp') and not isinstance(target, Minion),
-    "friendly_only": lambda target, source: getattr(target, 'owner', target) == source,
-    "enemy_only": lambda target, source: getattr(target, 'owner', target) != source,
-    "trigger_target": lambda target, source: target is getattr(source, 'trigger_target', None),
+    "friendly_only": lambda target, source: _owner_of(target) == _owner_of(source),
+    "enemy_only": lambda target, source: _owner_of(target) != _owner_of(source),
+    "trigger_target": lambda target, source: _owner_of(target) == _owner_of(getattr(source, 'trigger_target', None)),
+    "self": lambda target, source: target is source,
 }
 
 
@@ -218,7 +192,50 @@ def peer(amount):
     return resolver
 
 
+def play_card():
+    def resolver(game, source, target=None):
+        # the current holder of a card can differ from its owner (e.g. opponent-owned
+        # cards played from your hand), so find whoever actually has it in hand
+        player = next((p for p in game.players if source in p.hand), None)
+        if player is None:
+            print(f"{source.name} is not in any player's hand and cannot be played.")
+            return False
 
+        return game.play_card(player, source)
+
+    return resolver
+
+# Status Factory
+_STATUS_COUNTER = 10000
+
+def next_status_id():
+    global _STATUS_COUNTER
+    _STATUS_COUNTER += 1
+    return _STATUS_COUNTER
+
+def create_status_card(owner, name, type='Status', text='', element='', zone='', effects=()):
+    status = Status(
+        next_status_id(),
+        name,
+        "Status",
+        element,
+        "0",
+        text,
+    )
+    status.set_owner(owner)
+
+    for effect in effects:
+        status.add_effect(effect)
+
+    method_name = f"add_to_{zone}"
+    if hasattr(owner, method_name):
+        getattr(owner, method_name)(status)
+    else:
+        raise ValueError(f"Invalid zone '{zone}' for status card.")
+
+    return status
+
+# Status Effects:
 def aerate(amount):
     def resolver(game, source, target=None):
         # To aerate, create a Status card in the opponent's discard pile named "Air",
@@ -233,5 +250,107 @@ def aerate(amount):
                 zone="discard",
             )
             print(f"{opponent.name} received {amount} 'Air' in their discard pile.")
+        return True
+    return resolver
+
+def select_player_target(game, source, target_filter, action_desc):
+    # player-status effects may only ever target players, regardless of extra filters
+    filters = normalize_filters("player_only") + normalize_filters(target_filter)
+    valid_targets = [
+        player for player in game.players
+        if is_valid_target(player, source, filters)
+    ]
+    if not valid_targets:
+        print(f"No valid targets for {action_desc}.")
+        return None
+    if len(valid_targets) == 1:
+        return valid_targets[0]
+
+    print(
+        f"Choose a target for {action_desc}: "
+        f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
+    )
+    target_index = input("Enter target index: ").strip()
+    try:
+        return valid_targets[int(target_index)]
+    except (ValueError, IndexError):
+        print("Invalid target index.")
+        return None
+
+
+def resolve_player_target(game, source, target, target_filter, action_desc):
+    # even when a target is supplied (e.g. by a 'deals_damage' trigger), it may be a
+    # Minion rather than a player, so coerce it to its owner before validating filters
+    if target is not None:
+        player = target.owner if isinstance(target, Minion) else target
+        filters = normalize_filters("player_only") + normalize_filters(target_filter)
+        if is_valid_target(player, source, filters):
+            return player
+        print(f"{describe_target(target)} is not a valid target for {action_desc}.")
+        return None
+
+    return select_player_target(game, source, target_filter, action_desc)
+
+
+def burn(amount, target_filter=None):
+    def resolver(game, source, target=None):
+        # To burn, create a Status card shuffled into the target player's deck named "Burn",
+        # "Burn" Has "When you draw this card, take 1 damage. Unplayable, Exposed" It is a Status card.
+        target_player = resolve_player_target(game, source, target, target_filter, f"{source.name} to burn")
+        if target_player is None:
+            return False
+
+        for _ in range(amount):
+            create_status_card(
+                owner=target_player,
+                name="Burn",
+                element="Fire",
+                text="When you draw this card, take 1 damage. Unplayable, Exposed",
+                zone="deck",
+            )
+            target_player.deck.shuffle()
+            print(f"{target_player.name} received {amount} 'Burn' in their deck.")
+        return True
+    return resolver
+
+def frost(amount, target_filter=None):
+    def resolver(game, source, target=None):
+        # To frost, create a Status card shuffled into the target player's deck named "Frost",
+        # "Frost" Has "At the end of your turn, play this card from your hand. Draw" It is a status card.
+        target_player = resolve_player_target(game, source, target, target_filter, f"{source.name} to frost")
+        if target_player is None:
+            return False
+
+        for _ in range(amount):
+            create_status_card(
+                owner=target_player,
+                name="Frost",
+                element="Water",
+                text="At the end of your turn, play this card from your hand. Draw",
+                zone="deck",
+            )
+            target_player.deck.shuffle()
+            print(f"{target_player.name} received {amount} 'Frost' in their deck.")
+        return True
+    return resolver
+
+def poison(amount, target_filter=None):
+    def resolver(game, source, target=None):
+        # To poison, create a Status card shuffled into the target player's deck named "Poison",
+        # "Poison" Has "Take 1 damage, Draw, Combo" It is a Status card.
+        target_player = resolve_player_target(game, source, target, target_filter, f"{source.name} to poison")
+        if target_player is None:
+            return False
+
+        for _ in range(amount):
+            create_status_card(
+                owner=target_player,
+                name="Poison",
+                element="Nature",
+                text="Take 1 damage, Draw, Combo",
+                zone="deck",
+            )
+            target_player.deck.shuffle()
+            print(f"{target_player.name} received {amount} 'Poison' in their deck.")
         return True
     return resolver
