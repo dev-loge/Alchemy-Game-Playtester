@@ -77,9 +77,7 @@ class Game:
         #end turn actions for the active player (in all zones) then inactive player
         for player in self.players:
             for card in player.field + player.hand + player.discard:
-                for effect in card.effects:
-                    if effect.trigger == 'end_turn':
-                        effect.resolve(self, card)
+                self.trigger_effects(card, 'end_turn')
 
         self.turn += 1
         self.start_turn(); #Immediatley start the next turn
@@ -156,19 +154,7 @@ class Game:
         # Active player's field gets triggered first, then inactive player's field.
         for player in [self.active_player, self.inactive_player]:
             for field_card in player.field:
-                for effect in getattr(field_card, 'effects', []):
-                    if effect.trigger.startswith('card_played'):
-                        # sometimes effects may have additional conditions (ex.'card_played:name of a card' or 'card_played:type of a card')
-                        if ':' in effect.trigger:
-                            _, condition = effect.trigger.split(':', 1)
-                            if condition in self.card_types:
-                                if condition != card.type:
-                                    continue
-                            else:
-                                if condition != card.name:
-                                    continue
-
-                        effect.resolve(self, card)
+                self.trigger_effects(field_card, 'card_played', target=card)
 
         
         if self.original_phase is None:
@@ -200,9 +186,7 @@ class Game:
                 print(f'Card {card.name} resolved.')
             else:
                 # Effect resolution
-                for effect in getattr(card, 'effects', []):
-                    if effect.trigger == 'resolve':
-                        effect.resolve(self, card)
+                self.trigger_effects(card, 'resolve')
                 
                 # Determine destination
                 self.field_controller(card).remove_from_field(card)
@@ -265,16 +249,14 @@ class Game:
             target.hp -= amount
 
             # trigger source's 'deals_damage' effects, trigger_target is the damaged target
-            source.trigger_target = target
-            for effect in getattr(source, 'effects', []):
-                if effect.trigger == 'deals_damage':
-                    effect.resolve(self, source, target=target)
+            if hasattr(source, 'trigger_target'):
+                source.trigger_target = target
+            self.trigger_effects(source, 'deals_damage', target=target)
 
             # trigger target's 'takes_damage' effects, trigger_target is the source of the damage
-            target.trigger_target = source
-            for effect in getattr(target, 'effects', []):
-                if effect.trigger == 'takes_damage':
-                    effect.resolve(self, target, target=source)
+            if hasattr(target, 'trigger_target'):
+                target.trigger_target = source
+            self.trigger_effects(target, 'takes_damage', target=source)
 
         else:
             print(f"Target {target} does not have HP and cannot take damage.")
@@ -301,6 +283,9 @@ class Game:
         print(f"{minion.name} attacks {target.name}")
         minion.rested = True
 
+        # trigger minion's 'attacks' effects, trigger_target is the target being attacked
+        self.trigger_effects(minion, 'attacks', target=target)
+
         # Opponent Blocks
         # an opponent may block the attacking minion with any one of their un-rested minions,
         # if they do, the target becomes that minion
@@ -322,6 +307,9 @@ class Game:
                 else:
                     target = blocker
 
+                    # trigger blocker's 'blocks' effects, trigger_target is the attacking minion
+                    self.trigger_effects(blocker, 'blocks', target=minion)
+
         # Post Blocker Logic
         if isinstance(target, Minion):
             self.combat(minion, target)
@@ -329,6 +317,63 @@ class Game:
             self.take_damage(minion, target, minion.atk)
 
         return True
+
+    def trigger_effects(self, source, trigger, target=None):
+        def matches(effect_trigger):
+            if effect_trigger == trigger:
+                return True
+
+            if ':' not in effect_trigger:
+                return False
+
+            base_trigger, condition = effect_trigger.split(':', 1)
+            if base_trigger != trigger:
+                return False
+
+            if condition in self.card_types:
+                return condition == getattr(target, 'type', None)
+
+            source_name = getattr(source, 'name', None)
+            target_name = getattr(target, 'name', None)
+            source_type = getattr(source, 'type', None)
+            target_type = getattr(target, 'type', None)
+
+            return (
+                condition == source_name
+                or condition == target_name
+                or condition == source_type
+                or condition == target_type
+            )
+
+        if trigger == 'effect_triggered' or trigger.startswith('effect_triggered:'):
+            for effect in getattr(source, 'effects', []):
+                if not effect.trigger.startswith('effect_triggered'):
+                    continue
+
+                if effect.trigger == 'effect_triggered':
+                    effect.resolve(self, source, target=target)
+                    continue
+
+                _, condition = effect.trigger.split(':', 1)
+                if condition in self.card_types:
+                    if condition != getattr(target, 'type', None):
+                        continue
+                elif condition != getattr(target, 'name', None):
+                    continue
+
+                effect.resolve(self, source, target=target)
+            return
+
+        for effect in getattr(source, 'effects', []):
+            if matches(effect.trigger):
+                effect.resolve(self, source, target=target)
+
+        if trigger.startswith('effect_triggered'):
+            for player in self.players:
+                for field_card in player.field:
+                    if field_card is source:
+                        continue
+                    self.trigger_effects(field_card, 'effect_triggered', target=source)
 
     def print_state(self):
         priority_name = self.priority_player.name if self.priority_player else "None"
