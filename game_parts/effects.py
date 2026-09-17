@@ -154,10 +154,10 @@ def draw_cards(amount, player=None):
                 else:
                     print(f"{player.name} cannot draw a card. Deck is empty.")
 
-        if player is 'both':
+        if player == 'both':
             for p in game.players:
                 draw(p, count)
-        elif player is 'opponent':
+        elif player == 'opponent':
             opponent = game.other_player(source.owner)
             draw(opponent, count)
         else:
@@ -170,8 +170,13 @@ def remove_from_zone(player, amount, zone, destination, choice=None, target_filt
     def resolver(game, source, target=None):
         nonlocal zone
 
+        def get_deck_cards(player, zone):
+            if zone == 'deck':
+                return player.deck.cards
+            return getattr(player, zone)
+
         def move_card_to_destination(player, card, zone, destination):
-            current_zone_cards = getattr(player, zone)
+            current_zone_cards = get_deck_cards(player, zone)
             if card not in current_zone_cards:
                 return
 
@@ -195,7 +200,7 @@ def remove_from_zone(player, amount, zone, destination, choice=None, target_filt
                 print(f"{player.name} places {card.name} from {zone} into the deck and shuffles.")
 
         def remove_card(player, amount, zone, destination, choice='all', target_filter=None):
-            zone_cards = getattr(player, zone)
+            zone_cards = get_deck_cards(player, zone)
 
             if amount in {'any', 'any:set'}:
                 selectable_cards = [
@@ -249,7 +254,7 @@ def remove_from_zone(player, amount, zone, destination, choice=None, target_filt
                 elif choice == 'opponent':
                     print("Opponent's hand:")
                     opponent = game.other_player(player)
-                    opponent_zone_cards = getattr(opponent, zone)
+                    opponent_zone_cards = get_deck_cards(opponent, zone)
                     for index, card in enumerate(opponent_zone_cards):
                         print(f"{index}: {card.name}")
                     card_index = input("Choose a card from opponent's hand: ").strip()
@@ -265,7 +270,7 @@ def remove_from_zone(player, amount, zone, destination, choice=None, target_filt
 
                 if card:
                     move_card_to_destination(player, card, zone, destination)
-                    zone_cards = getattr(player, zone)
+                    zone_cards = get_deck_cards(player, zone)
 
         if player == "both":
             for p in game.players:
@@ -280,7 +285,7 @@ def remove_from_zone(player, amount, zone, destination, choice=None, target_filt
 
 def deal_damage(amount, target_filter=None):
     def resolver(game, source, target=None):
-        amount = resolve_effect_amount(source, amount, label="damage")
+        resolved_amount = resolve_effect_amount(source, amount, label="damage")
 
         if target is None:
             valid_targets = []
@@ -299,7 +304,7 @@ def deal_damage(amount, target_filter=None):
                 return False
 
             print(
-                f"Choose a target for {source.name} to deal {amount} damage: "
+                f"Choose a target for {source.name} to deal {resolved_amount} damage: "
                 f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
             )
             target_index = input("Enter target index: ").strip()
@@ -309,7 +314,7 @@ def deal_damage(amount, target_filter=None):
                 print("Invalid target index. No damage dealt.")
                 return False
 
-        game.take_damage(source, target, amount)
+        game.take_damage(source, target, resolved_amount)
 
         return True
 
@@ -317,7 +322,7 @@ def deal_damage(amount, target_filter=None):
 
 def heal(amount, target_filter=None):
     def resolver(game, source, target=None):
-        amount = resolve_effect_amount(source, amount, label="healing")
+        resolved_amount = resolve_effect_amount(source, amount, label="healing")
 
         if target is None:
             valid_targets = []
@@ -336,7 +341,7 @@ def heal(amount, target_filter=None):
                 return False
 
             print(
-                f"Choose a target for {source.name} to heal {amount}: "
+                f"Choose a target for {source.name} to heal {resolved_amount}: "
                 f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
             )
             target_index = input("Enter target index: ").strip()
@@ -347,8 +352,8 @@ def heal(amount, target_filter=None):
                 return False
 
         if hasattr(target, 'hp'):
-            target.hp += amount
-            print(f"{source.owner.name} heals {amount} HP on {target.name}. Current HP: {target.hp}")
+            target.hp += resolved_amount
+            print(f"{source.owner.name} heals {resolved_amount} HP on {target.name}. Current HP: {target.hp}")
         return True
 
     return resolver
@@ -487,7 +492,9 @@ def create_status_card(owner, name, type='Status', text='', element='', zone='',
     )
     status.set_owner(owner)
 
-    for effect in effects:
+    from db.effect_db import effects_by_name
+
+    for effect in (*effects_by_name.get(name, ()), *effects):
         status.add_effect(effect)
 
     method_name = f"add_to_{zone}"
@@ -533,7 +540,7 @@ def add_status(status_name, amount, target_filter=None, zone="deck"):
     config = status_defs[status_name]
 
     def resolver(game, source, target=None):
-        amount = resolve_effect_amount(source, amount, label="status cards")
+        resolved_amount = resolve_effect_amount(source, amount, label="status cards")
         target_player = resolve_player_target(
             game,
             source,
@@ -544,7 +551,7 @@ def add_status(status_name, amount, target_filter=None, zone="deck"):
         if target_player is None:
             return False
 
-        for _ in range(amount):
+        for _ in range(resolved_amount):
             create_status_card(
                 owner=target_player,
                 name=status_name,
@@ -554,7 +561,7 @@ def add_status(status_name, amount, target_filter=None, zone="deck"):
             )
             if config["shuffle"]:
                 target_player.deck.shuffle()
-            print(f"{target_player.name} received {amount} '{status_name}' in their {zone}.")
+            print(f"{target_player.name} received {resolved_amount} '{status_name}' in their {zone}.")
         return True
 
     return resolver

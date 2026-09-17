@@ -1,10 +1,9 @@
 from pathlib import Path
-
+from game_parts.deck import Deck
 from game_parts.game import Game
 from game_parts.player import Player
 from imports.cards.card_loader import load_cards
 from db.card_db import CardDatabase
-from game_parts.deck import Deck
 
 player1 = Player("Player 1")
 player2 = Player("Player 2")
@@ -14,120 +13,37 @@ print(f"Loaded {len(cards)} cards.")
 db = CardDatabase(cards)
 
 
-def parse_cost_value(card_or_cost):
-    cost = card_or_cost.cost if hasattr(card_or_cost, "cost") else card_or_cost
-    raw = str(cost).strip()
-    if raw in ("", "N/A"):
-        return 0
-    if raw.startswith("+") or raw.startswith("-"):
-        value_part = raw[1:]
-        if value_part and value_part[-1].isalpha():
-            value_part = value_part[:-1]
-        return int(value_part)
-    return 0
-
-
-def parse_cost(card_or_cost):
-    cost = card_or_cost.cost if hasattr(card_or_cost, "cost") else card_or_cost
-    raw = str(cost).strip()
-    if raw in ("", "N/A") or raw[0] not in "+-":
-        return 0, 0, None
-
-    value_part = raw[1:]
-    element = value_part[-1] if value_part and value_part[-1].isalpha() else None
-    if element:
-        value_part = value_part[:-1]
-    return (1 if raw[0] == "+" else -1), int(value_part), element
-
-
-def validate_deck(deck_cards, allowed_elements):
-    if len(deck_cards) < 30:
-        return False, f"Deck too small: {len(deck_cards)} cards"
-
-    card_types = {card.type for card in deck_cards}
-    if not {"Power", "Spell", "Trap", "Minion", "Relic"}.issubset(card_types):
-        return False, f"Deck is missing required card types: {sorted(card_types)}"
-
-    if any(card.type == "Minion" and (card.atk == "X" or card.hp == "X") for card in deck_cards):
-        return False, "Deck contains an X-stat minion, which is not supported by the current combat system"
-
-    combo_cards = sum(1 for card in deck_cards if "Combo" in str(card.text))
-    if combo_cards < 4:
-        return False, f"Deck has too few combo cards: {combo_cards}"
-
-    non_power_counts = {}
-    power_by_element = {}
-    spent_by_element = {}
-    white_spent = 0
-    for card in deck_cards:
-        sign, value, element = parse_cost(card)
-        if element not in allowed_elements and element != "W":
-            return False, f"{card.name} uses element {element}, outside {sorted(allowed_elements)}"
-
-        if card.type == "Power":
-            power_by_element[element] = power_by_element.get(element, 0) + sign * value
-        else:
-            non_power_counts[card.name] = non_power_counts.get(card.name, 0) + 1
-            if non_power_counts[card.name] > 3:
-                return False, f"Too many copies of non-power card: {card.name}"
-            if sign < 0:
-                if element == "W":
-                    white_spent += value
-                else:
-                    spent_by_element[element] = spent_by_element.get(element, 0) + value
-
-    for element in allowed_elements:
-        available = power_by_element.get(element, 0)
-        if available + white_spent < spent_by_element.get(element, 0):
-            return False, f"Not enough {element} power for the deck's costs"
-
-    return True, "Deck is valid"
-
-
-def make_deck(names, allowed_elements):
+def cards_from_names(names):
     chosen = []
     for name in names:
         card = db.find_card(name)
         if card is None:
             raise ValueError(f"Unknown card: {name}")
         chosen.append(card.create_instance())
-
-    valid, reason = validate_deck(chosen, allowed_elements)
-    if not valid:
-        raise ValueError(f"Deck {names} invalid: {reason}")
-
-    return Deck(chosen)
+    return chosen
 
 
-deck1_names = [
-    "Heat", "Heat", "Flame", "Flame", "Flame", "Blaze",
-    "Drop", "Drop", "Puddle", "Puddle", "Puddle", "Lake",
-    "Ember", "Ember", "Ember", "FireFly", "FireFly", "FireFly",
-    "Ignite", "Ignite", "Ignite",
-    "Chill", "Chill", "Chill", "Think Ahead", "Think Ahead", "Think Ahead",
-    "Librarian", "Librarian", "Librarian", "Splash",
-    "Philosopher's Stone",
+burn_deck = [
+    "Heat", "Heat", "Heat", "Heat", "Flame", "Flame", "Flame", "Lava",
+    "Basking Lizard", "Basking Lizard", "Basking Lizard", "Scorch-pion", "Scorch-pion", "Scorch-pion",
+    "Searing Wind", "Searing Wind", "Searing Wind", "Cauterize", "Cauterize",
+    "Sandstorm",
 ]
 
-deck2_names = [
-    "Breeze", "Breeze", "Breeze", "Breeze", "Breeze", "Breeze",
-    "Puddle", "Puddle", "Puddle", "Puddle", "Puddle", "Puddle",
-    "Mote", "Mote", "Mote", "Stint", "Stint", "Stint",
-    "Dust Cloud", "Dust Cloud", "Dust Cloud",
-    "Water Spirit", "Water Spirit", "Water Spirit", "Gulping Toad", "Gulping Toad", "Gulping Toad",
-    "Librarian", "Librarian", "Librarian", "Splash",
-    "Philosopher's Stone",
+poison_deck = [
+    "Pebble", "Pebble", "Pebble", "Pebble", "Rock", "Rock", "Rock", "Boulder",
+    "Witchdoctor", "Witchdoctor", "Witchdoctor", "Venomous Snake", "Venomous Snake", "Venomous Snake",
+    "Envenom", "Envenom", "Envenom", "Gulping Toad", "Gulping Toad",
+    "The Monster",
 ]
 
-deck1 = make_deck(deck1_names, {"R", "B"})
-deck2 = make_deck(deck2_names, {"Y", "B"})
+player1_deck = cards_from_names(burn_deck)
+player2_deck = cards_from_names(poison_deck)
 
-print("Deck 1 valid:", validate_deck(deck1.cards, {"R", "B"})[0])
-print("Deck 2 valid:", validate_deck(deck2.cards, {"Y", "B"})[0])
+player1.set_deck(Deck(player1_deck))
+player2.set_deck(Deck(player2_deck))
 
 game = Game([player1, player2])
-player1.set_deck(deck1)
-player2.set_deck(deck2)
 
 # ========================================================================================================test environment here
 game.start()
@@ -174,16 +90,16 @@ def show_board(label="State"):
     )
     print(f"Pile: {[card.name for card in game.pile]}")
     for player in game.players:
-        trap_cards = [card.name for card in player.hand if card.type == "Trap"]
-        combo_cards = [card.name for card in player.hand if "Combo" in card.text]
-        print(
-            f"{player.name} hand: {[card.name for card in player.hand]} | "
-            f"field: {summarize_field(player)} | "
-            f"discard: {[card.name for card in player.discard]} | "
-            f"power used: {player.power_played.name if player.power_played else 'None'} | "
-            f"non-power used: {player.non_power_played.name if player.non_power_played else 'None'} | "
-            f"traps: {trap_cards} | combo: {combo_cards}"
-        )
+        print(f"{player.name}:")
+        print(f"  Hand: {[card.name for card in player.hand]}")
+        print(f"  Field: {summarize_field(player)}")
+        print(f"  Discard: {[card.name for card in player.discard]}")
+        print(f"  Deck: {len(player.deck.cards)} cards")
+        if player is game.active_player:
+            print(
+                f"  Power used: {player.power_played.name if player.power_played else 'None'} | "
+                f"Non-power used: {player.non_power_played.name if player.non_power_played else 'None'}"
+            )
 
     print(f"Player HP: {[(p.name, p.hp) for p in game.players]}")
 

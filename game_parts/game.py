@@ -114,9 +114,9 @@ class Game:
             return False
         
 
-        # Reveal a power to play a non-power card.
+        # Reveal a power to play a non-power non-status card.
         # White cards may use any power as their reveal, since White has no dedicated power card type.
-        if card.type != 'Power':
+        if card.type != 'Power' and card.type != 'Status':
             def is_valid_reveal(power_card):
                 if power_card.type != 'Power':
                     return False
@@ -152,8 +152,8 @@ class Game:
 
         # Activate any "card_played" triggered effects of cards on the field
         # Active player's field gets triggered first, then inactive player's field.
-        for player in [self.active_player, self.inactive_player]:
-            for field_card in player.field:
+        for field_player in [self.active_player, self.inactive_player]:
+            for field_card in field_player.field:
                 self.trigger_effects(field_card, 'card_played', target=card)
 
         
@@ -307,8 +307,8 @@ class Game:
                 else:
                     target = blocker
 
-                    # trigger blocker's 'blocks' effects, trigger_target is the attacking minion
                     self.trigger_effects(blocker, 'blocks', target=minion)
+                    self.trigger_effects(minion, 'blocked', target=blocker)
 
         # Post Blocker Logic
         if isinstance(target, Minion):

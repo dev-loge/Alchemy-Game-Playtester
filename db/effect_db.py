@@ -11,7 +11,7 @@ effects_by_name = {
 	# Powers
 	"Heat": (when('resolve', deal_damage(1)), when('resolve', draw_cards(2))),
 	"Flame": (when('resolve', deal_damage(1)), when('resolve', draw_cards(1))),
-	"Blaze": (),
+	"Lava": (),
 	"Pebble": (when('resolve', heal(1)), when('resolve', draw_cards(2))),
 	"Rock": (when('resolve', heal(1)), when('resolve', draw_cards(1))),
 	"Boulder": (),
@@ -26,31 +26,49 @@ effects_by_name = {
 	"FireFly": (when('dies', deal_damage(1, target_filter="minion_only")),),
 	"Ignite": (when('resolve', deal_damage(2, target_filter="trigger_target")),),
 	# Status Effects
-	"Burn": (when('draw', deal_damage(1, target_filter="self")),),
+	"Burn": (when('draw', deal_damage(1, target_filter="owner")),),
 	"Frost": (when('resolve', draw_cards(1)), when('end_turn', play_card())),
-	"Poison": (when('resolve', deal_damage(1, target_filter="self")), 
+	"Poison": (when('resolve', deal_damage(1, target_filter="owner")), 
 				when('resolve', draw_cards(1))),
 	# Cards
 	"Witchdoctor": (when('card_played:Poison', heal(1)),),
+
 	"Basking Lizard": (when('effect_triggered:Burn', heal(1)),),
+
 	"Snowgrazer": (when('card_played:Frost', heal(1)),),
+
 	"Bird Tamer": (when('card_played:Air', heal(1)),),
-	"Venemous Snake": (when('deals_damage', add_status("Poison", 2, target_filter="trigger_target")),),
+
+	"Venomous Snake": (when('deals_damage', add_status("Poison", 2, target_filter="trigger_target")),),
+
 	"Scorch-pion": (when('deals_damage', add_status("Burn", 1, target_filter="trigger_target")),),
+
 	"Frostfang": (when('deals_damage', add_status("Frost", 3, target_filter="trigger_target")),),
+
 	"Baby Roc": (when('attacks', add_status("Air", 1)),),
+
 	"Searing Wind": (when('resolve', add_status("Burn", 3)),),
+
 	"Envenom": (when('resolve', add_status("Poison", 4)),),
+
 	"Frostbite": (when('resolve', add_status("Frost", 5)),),
+
 	"Gale": (when('resolve', add_status("Air", 5)),),
+
 	"Sandstorm": (when('resolve', remove_from_zone('both', 'all', 'hand', 'banish')), 
-			   	when('resolve', draw_cards(5, 'both'))),
+			   	  when('resolve', draw_cards(5, 'both'))),
+
 	"Updraft": (when('resolve', shuffle_air('opponent', 'updraft')),),
+
 	"Blizzard Elemental": (when('attacks', add_status("Frost", 3, target_filter="owner", zone="hand")),),
-	"": (),
+
+	"The Monster": (when('card_played:Poison', draw_cards(1)), 
+					when('blocked', add_status("Poison", 2, target_filter="trigger_target"))),
+
 	"Cauterize": (when('resolve', remove_from_zone('self', 'any:set', 'deck', 'banish', 'player', target_filter="status_only")),
-			   	when ('resolve', deal_damage('any:get', target_filter="self"))),
-	"Gulping Toad": (when('resolve', remove_from_zone('self', 'any:set', 'hand', 'discard', 'player', target_filter="status_only")),
-				  	when('resolve', change_attack('any:get', reduce=False, target_filter="self")),
-					when('resolve', heal('any:get'))),
+			   	  when ('resolve', deal_damage('any:get', target_filter="owner"))),
+
+	"Gulping Toad": (when('resolve', remove_from_zone('self', 'any:set', 'hand', 'banish', 'player', target_filter="status_only")),
+				  	 when('resolve', change_attack('any:get', reduce=False, target_filter="self")),
+					 when('resolve', heal('any:get'))),
 }

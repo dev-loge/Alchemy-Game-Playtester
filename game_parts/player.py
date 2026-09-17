@@ -1,4 +1,4 @@
-from Alchemy.game_parts import game
+from game_parts import game
 from db.trap_clause_db import trap_clause_check
 
 class Player:
@@ -55,6 +55,14 @@ class Player:
             print(f"Card {card} not found in {self.name}'s discard pile. Cannot remove.")
         return None
 
+    def remove_from_deck(self, card):
+        if self.deck and card in self.deck.cards:
+            self.deck.cards.remove(card)
+            return card
+        else:
+            print(f"Card {card} not found in {self.name}'s deck. Cannot remove.")
+        return None
+
     def add_to_hand(self, card):
         self.hand.append(card)
 
@@ -66,6 +74,10 @@ class Player:
 
     def add_to_banish(self, card):
         self.banish.append(card)
+
+    def add_to_deck(self, card):
+        if self.deck:
+            self.deck.cards.append(card)
 
     def request_response(self, game, event, event_player, event_data):
         playable_cards = [
