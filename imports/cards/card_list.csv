@@ -19,33 +19,34 @@ Draw 2",N/A,N/A,None,
 011,Rock,Power,+3G,3,Earth,N/A,"Heal 1
 Draw, Combo",N/A,N/A,None,
 012,Boulder,Power,+6G,6,Earth,N/A,Unplayable,N/A,N/A,None,
-013,Witchdoctor,Minion,-1G,-1,Earth,N/A,"When an opponent plays ""Poison"", Heal 1",1,3,Poison,
-014,Basking Lizard,Minion,-1R,-1,Fire,N/A,"When an opponent draws ""Burn"", Heal 1",1,3,Burn,
-015,Snowgrazer,Minion,-1B,-1,Water,N/A,"When an opponent plays ""Frost"", Heal 1",1,3,Frost,
-016,Bird Tamer,Minion,-1Y,-1,Air,N/A,"When an opponent plays ""Air"", Heal 1",1,3,Aerate,
-017,Venomous Snake,Minion,-1G,-1,Earth,N/A,"When this card deals dmg to a player, Poison 2 them
-Combo",2,2,Poison,
-018,Scorch-pion,Minion,-1R,-1,Fire,N/A,"When this card deals dmg to a player, Burn 1 them
-Combo",2,2,Burn,
-019,Frostfang,Minion,-1B,-1,Water,N/A,"When this card deals dmg to a player, Frost 3 them
-Combo",2,2,Frost,
-020,Baby Roc,Minion,-1Y,-1,Air,N/A,"When this card attacks, Aerate 1
-Initiative, Combo",1,3,Aerate,
-021,Searing Wind,Spell,-2R,-2,Fire,N/A,Burn 3,N/A,N/A,Burn,
-022,Envenom,Spell,-2G,-2,Earth,N/A,Poison 4,N/A,N/A,Poison,
-023,Frostbite,Spell,-2B,-2,Water,N/A,Frost 5,N/A,N/A,Frost,
+013,Witchdoctor,Minion,-1G,-1,Earth,N/A,"When an opponent plays ""Poison"", Heal 1
+Combo",1,3,Poison,
+014,Basking Lizard,Minion,-1R,-1,Fire,N/A,"When an opponent draws ""Burn"", Heal 1
+Combo",1,3,Burn,
+015,Snowgrazer,Minion,-1B,-1,Water,N/A,"When an opponent plays ""Frost"", Heal 1
+Combo",1,3,Frost,
+016,Bird Tamer,Minion,-1Y,-1,Air,N/A,"When an opponent plays ""Air"", Heal 1
+Combo",1,3,Aerate,
+017,Venomous Snake,Minion,-1G,-1,Earth,N/A,"When this card deals dmg to a player, Add 2 ""Poison"" into a player's deck",2,2,Poison,
+018,Scorch-pion,Minion,-1R,-1,Fire,N/A,"When this card deals dmg to a player, Add 1 ""Burn"" into a player's deck",2,2,Burn,
+019,Frostfang,Minion,-1B,-1,Water,N/A,"When this card deals dmg to a player, Add 3 ""Frost"" into a player's deck",2,2,Frost,
+020,Baby Roc,Minion,-1Y,-1,Air,N/A,"When this card attacks, Aerate 1",2,2,Aerate,
+021,Searing Wind,Spell,-2R,-2,Fire,N/A,"Add 3 ""Burn"" into a player's discard",N/A,N/A,Burn,
+022,Envenom,Spell,-2G,-2,Earth,N/A,"Add 4 ""Poison"" into a player's discard",N/A,N/A,Poison,
+023,Frostbite,Spell,-2B,-2,Water,N/A,"Add 4 ""Frost"" into a player's deck",N/A,N/A,Frost,
 024,Gale,Spell,-2Y,-2,Air,N/A,Aerate 5,N/A,N/A,Aerate,
 025,Sandstorm,Spell,-3R,-3,Fire,N/A,"Both players Banish their hand, then draw 5",N/A,N/A,Burn,
 026,Updraft,Spell,-3Y,-3,Air,N/A,"Shuffle all ""Air"" in a player's discard into their deck, if 5+ ""Air"" were shuffled this way, also shuffle 1 minion from their field into their deck",N/A,N/A,Aerate,
-027,Blizard Elemental,Minion,-3B,-3,Water,N/A,"When this card attacks, Add 3 ""Frost"" to your hand",2,4,Frost,
+027,Blizzard Elemental,Minion,-3B,-3,Water,N/A,"When this card attacks, Add 3 ""Frost"" to your hand",2,4,Frost,
 028,The Monster,Minion,-3G,-3,Earth,N/A,"When a player plays ""Poison"", Draw
 When this card becomes blocked, Poison 2",3,4,Poison,
-029,Cauterize,Spell,-2R,-2,Fire,N/A,"Search your deck for any amount of status cards and banish them
+029,Cauterize,Spell,-1R,-1,Fire,N/A,"Search your deck for any amount of status cards and banish them
 Take dmg equal to the amount of cards banished this way",N/A,N/A,None,
 030,Gulping Toad,Minion,-2G,-2,Earth,N/A,"When you play this card, discard X status cards
 This card gains +X ATK and you Heal X",0,3,None,
-031,,,,#VALUE!,,,,,,,
-032,,,,#VALUE!,,,,,,,
+031,Disperse,Trap,-2Y,-2,Air,When X status cards would be added to one of your zones,"Heal X, Draw X",N/A,N/A,None,
+032,Crystallize,Reaction,-2B,-2,Water,N/A,"Banish any number of cards from your hand
+Add that much ""Frost"" to your hand",N/A,N/A,None,
 033,,,,#VALUE!,,,,,,,
 034,,,,#VALUE!,,,,,,,
 035,,,,#VALUE!,,,,,,,

@@ -1,5 +1,6 @@
 from pathlib import Path
 from game_parts.deck import Deck
+from game_parts.effects import prompt_target_index
 from game_parts.game import Game
 from game_parts.player import Player
 from imports.cards.card_loader import load_cards
@@ -37,8 +38,22 @@ poison_deck = [
     "The Monster",
 ]
 
-player1_deck = cards_from_names(burn_deck)
-player2_deck = cards_from_names(poison_deck)
+frost_deck = [
+    "Drop", "Drop", "Drop", "Drop", "Puddle", "Puddle", "Puddle", "Lake",
+    "Snowgrazer", "Snowgrazer", "Snowgrazer", "Frostfang", "Frostfang", "Frostfang", 
+    "Frostbite", "Frostbite", "Frostbite", "Crystallize", "Crystallize",
+    "Blizzard Elemental",
+]
+
+air_deck = [
+    "Breath", "Breath", "Breath", "Breath", "Breeze", "Breeze", "Breeze", "Gust", 
+    "Bird Tamer", "Bird Tamer", "Bird Tamer", "Baby Roc", "Baby Roc", "Baby Roc",
+    "Gale", "Gale", "Gale", "Disperse", "Disperse", 
+    "Updraft",
+]
+
+player1_deck = cards_from_names(frost_deck)
+player2_deck = cards_from_names(air_deck)
 
 player1.set_deck(Deck(player1_deck))
 player2.set_deck(Deck(player2_deck))
@@ -117,6 +132,7 @@ while True:
         available_attackers = [
             card for card in active_player.field
             if card.type == "Minion" and not getattr(card, "rested", False)
+            and not getattr(card, "summoning_sick", False)
         ]
         print(f"Available attackers for {active_player.name}: ")
         print([
@@ -151,13 +167,10 @@ while True:
         print(
             f"Available targets: {target_display}"
         )
-        target_choice = input("Enter target index: ").strip()
-
-        try:
-            target = available_targets[int(target_choice)]
-        except (ValueError, IndexError):
-            print("Invalid target index.")
-            continue
+        if len(available_targets) == 1:
+            target = available_targets[0]
+        else:
+            target = available_targets[prompt_target_index(len(available_targets))]
 
         game.minion_attack(attacker, target)
         show_board("After Combat")

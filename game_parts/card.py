@@ -33,6 +33,9 @@ class Power(Card):
 class Spell(Card):
     pass
 
+class Reaction(Card):
+    pass
+
 class Trap(Card):
     def __init__(self, id, name, type, element, cost, text, clause):
         super().__init__(id, name, type, element, cost, text)
@@ -45,6 +48,7 @@ class Minion(Card):
         self.hp = int(hp)
         self.rested = False
         self.frozen = False
+        self.summoning_sick = False
 
     def dies(self, game=None):
         if self.owner is None:

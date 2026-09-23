@@ -53,6 +53,19 @@ def is_valid_target(target, source, target_filter):
 
     return True
 
+def prompt_target_index(count, prompt="Enter target index: "):
+    while True:
+        choice = input(prompt).strip()
+        try:
+            index = int(choice)
+        except ValueError:
+            print("Invalid target index. Please try again.")
+            continue
+        if 0 <= index < count:
+            return index
+        print("Invalid target index. Please try again.")
+
+
 def select_player_target(game, source, target_filter, action_desc):
     # player-status effects may only ever target players, regardless of extra filters
     filters = normalize_filters("player_only") + normalize_filters(target_filter)
@@ -70,12 +83,7 @@ def select_player_target(game, source, target_filter, action_desc):
         f"Choose a target for {action_desc}: "
         f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
     )
-    target_index = input("Enter target index: ").strip()
-    try:
-        return valid_targets[int(target_index)]
-    except (ValueError, IndexError):
-        print("Invalid target index.")
-        return None
+    return valid_targets[prompt_target_index(len(valid_targets))]
 
 
 def resolve_player_target(game, source, target, target_filter, action_desc):
@@ -303,16 +311,14 @@ def deal_damage(amount, target_filter=None):
                 print("No valid targets.")
                 return False
 
-            print(
-                f"Choose a target for {source.name} to deal {resolved_amount} damage: "
-                f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
-            )
-            target_index = input("Enter target index: ").strip()
-            try:
-                target = valid_targets[int(target_index)]
-            except (ValueError, IndexError):
-                print("Invalid target index. No damage dealt.")
-                return False
+            if len(valid_targets) == 1:
+                target = valid_targets[0]
+            else:
+                print(
+                    f"Choose a target for {source.name} to deal {resolved_amount} damage: "
+                    f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
+                )
+                target = valid_targets[prompt_target_index(len(valid_targets))]
 
         game.take_damage(source, target, resolved_amount)
 
@@ -324,7 +330,9 @@ def heal(amount, target_filter=None):
     def resolver(game, source, target=None):
         resolved_amount = resolve_effect_amount(source, amount, label="healing")
 
-        if target is None:
+        # trigger context (e.g. a 'card_played' or 'effect_triggered' condition) may pass
+        # along a non-healable object (the card that was played), so fall back to selection
+        if target is None or not hasattr(target, 'hp'):
             valid_targets = []
             for player in game.players:
                 valid_targets.append(player)
@@ -340,16 +348,14 @@ def heal(amount, target_filter=None):
                 print("No valid heal targets.")
                 return False
 
-            print(
-                f"Choose a target for {source.name} to heal {resolved_amount}: "
-                f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
-            )
-            target_index = input("Enter target index: ").strip()
-            try:
-                target = valid_targets[int(target_index)]
-            except (ValueError, IndexError):
-                print("Invalid target index. No healing done.")
-                return False
+            if len(valid_targets) == 1:
+                target = valid_targets[0]
+            else:
+                print(
+                    f"Choose a target for {source.name} to heal {resolved_amount}: "
+                    f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
+                )
+                target = valid_targets[prompt_target_index(len(valid_targets))]
 
         if hasattr(target, 'hp'):
             target.hp += resolved_amount
@@ -550,6 +556,19 @@ def add_status(status_name, amount, target_filter=None, zone="deck"):
         )
         if target_player is None:
             return False
+
+        if resolved_amount > 0:
+            from .game import ResponseEvent, EventData
+
+            game.response_cycle(
+                ResponseEvent.STATUS_ADDED,
+                event_player=source.owner,
+                event_data=EventData(
+                    amount=resolved_amount,
+                    target_player=target_player,
+                    status_name=status_name,
+                ),
+            )
 
         for _ in range(resolved_amount):
             create_status_card(

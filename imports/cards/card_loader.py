@@ -1,7 +1,7 @@
 import csv
 
 from db.effect_db import effects_by_name
-from game_parts.card import Card, Power, Spell, Trap, Minion, Relic, Status
+from game_parts.card import Card, Power, Spell, Trap, Minion, Relic, Status, Reaction
 
 
 def parse_stat(value):
@@ -26,6 +26,7 @@ def build_card_from_row(row, card_types):
     card_builders = {
         "Minion": lambda: card_class(*base_data, parse_stat(row["ATK"]), parse_stat(row["HP"])),
         "Trap": lambda: card_class(*base_data, row["Clause"]),
+        "Reaction": lambda: card_class(*base_data),
         "Power": lambda: card_class(*base_data),
         "Spell": lambda: card_class(*base_data),
         "Relic": lambda: card_class(*base_data),
@@ -47,7 +48,8 @@ def load_cards(file_path):
         "Trap": Trap,
         "Minion": Minion,
         "Relic": Relic,
-        "Status": Status
+        "Status": Status,
+        "Reaction": Reaction
     }
 
     with open(file_path, newline='', encoding='utf-8-sig') as file:

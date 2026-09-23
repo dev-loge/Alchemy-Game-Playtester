@@ -18,8 +18,8 @@ effects_by_name = {
 	"Drop": (when('resolve', peer(1)), when('resolve', draw_cards(2))),
 	"Puddle": (when('resolve', peer(1)), when('resolve', draw_cards(1))),
 	"Lake": (),
-	"Breath": (when('resolve', add_status("Air", 1)), when('resolve', draw_cards(2))),
-	"Breeze": (when('resolve', add_status("Air", 1)), when('resolve', draw_cards(1))),
+	"Breath": (when('resolve', add_status("Air", 1, zone="discard")), when('resolve', draw_cards(2))),
+	"Breeze": (when('resolve', add_status("Air", 1, zone="discard")), when('resolve', draw_cards(1))),
 	"Gust": (),
 	# TEST Cards
 	"Ember": (when('resolve', deal_damage(1)), when('resolve', draw_cards(1))),
@@ -39,21 +39,21 @@ effects_by_name = {
 
 	"Bird Tamer": (when('card_played:Air', heal(1)),),
 
-	"Venomous Snake": (when('deals_damage', add_status("Poison", 2, target_filter="trigger_target")),),
+	"Venomous Snake": (when('deals_damage:player', add_status("Poison", 2, target_filter="trigger_target")),),
 
-	"Scorch-pion": (when('deals_damage', add_status("Burn", 1, target_filter="trigger_target")),),
+	"Scorch-pion": (when('deals_damage:player', add_status("Burn", 1, target_filter="trigger_target")),),
 
-	"Frostfang": (when('deals_damage', add_status("Frost", 3, target_filter="trigger_target")),),
+	"Frostfang": (when('deals_damage:player', add_status("Frost", 3, target_filter="trigger_target")),),
 
-	"Baby Roc": (when('attacks', add_status("Air", 1)),),
+	"Baby Roc": (when('attacks', add_status("Air", 1, zone="discard")),),
 
-	"Searing Wind": (when('resolve', add_status("Burn", 3)),),
+	"Searing Wind": (when('resolve', add_status("Burn", 3, zone="discard")),),
 
-	"Envenom": (when('resolve', add_status("Poison", 4)),),
+	"Envenom": (when('resolve', add_status("Poison", 4, zone="discard")),),
 
 	"Frostbite": (when('resolve', add_status("Frost", 5)),),
 
-	"Gale": (when('resolve', add_status("Air", 5)),),
+	"Gale": (when('resolve', add_status("Air", 5, zone="discard")),),
 
 	"Sandstorm": (when('resolve', remove_from_zone('both', 'all', 'hand', 'banish')), 
 			   	  when('resolve', draw_cards(5, 'both'))),
@@ -71,4 +71,10 @@ effects_by_name = {
 	"Gulping Toad": (when('resolve', remove_from_zone('self', 'any:set', 'hand', 'banish', 'player', target_filter="status_only")),
 				  	 when('resolve', change_attack('any:get', reduce=False, target_filter="self")),
 					 when('resolve', heal('any:get'))),
+
+	"Crystallize": (when('resolve', remove_from_zone('self', 'any:set', 'hand', 'banish', 'player', target_filter="status_only")),
+					when('resolve', add_status('Frost', 'any:get', target_filter="owner", zone="hand"))),
+
+	"Disperse": (when('resolve', heal('any:get', target_filter="owner")), 
+			  	 when('resolve', draw_cards('any:get'))),
 }

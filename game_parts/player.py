@@ -1,4 +1,3 @@
-from game_parts import game
 from db.trap_clause_db import trap_clause_check
 
 class Player:
@@ -12,6 +11,7 @@ class Player:
         self.hp = 10
         self.power_played = None
         self.non_power_played = None
+        self.game = None
 
     def set_deck(self, deck):
         self.deck = deck
@@ -27,7 +27,7 @@ class Player:
             # some cards have effects that trigger when drawn
             for effect in getattr(card, 'effects', []):
                 if effect.trigger == 'draw':
-                    effect.resolve(game, card)
+                    effect.resolve(self.game, card)
 
         return card
 

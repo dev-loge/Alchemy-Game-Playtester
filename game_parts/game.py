@@ -13,6 +13,8 @@ def describe_minion(minion):
 class Game:
     def __init__(self, players):
         self.players = players
+        for player in players:
+            player.game = self
         self.turn = 0 #turn number tracker
         self.phase = None
         self.pile = []
@@ -62,6 +64,7 @@ class Game:
                 card.frozen = False
             else:
                 card.rested = False
+            card.summoning_sick = False
 
         # Draw (unless going first)
         self.phase = Phase.DRAW
@@ -141,6 +144,9 @@ class Game:
         # Manage Player Data
         player.remove_from_hand(card)
         player.add_to_field(card)
+        # minions can't attack the turn they're played unless they have Initiative
+        if isinstance(card, Minion) and 'Initiative' not in card.text:
+            card.summoning_sick = True
         if self.phase == Phase.MAIN:
             if card.type == 'Power':
                 player.power_played = card
@@ -157,7 +163,11 @@ class Game:
                 self.trigger_effects(field_card, 'card_played', target=card)
 
         
-        if self.original_phase is None:
+        # only the outermost play_card owns restoring original_phase; a card played
+        # mid-resolution of another cycle (e.g. a trap fired by a STATUS_ADDED check)
+        # must not clobber the enclosing call's bookkeeping
+        is_outermost_phase = self.original_phase is None
+        if is_outermost_phase:
             self.original_phase = self.phase
 
         # Trigger response cycle
@@ -169,7 +179,8 @@ class Game:
         self.resolve_pile()
 
         self.phase = self.original_phase
-        self.original_phase = None
+        if is_outermost_phase:
+            self.original_phase = None
 
         return True
 
@@ -202,7 +213,11 @@ class Game:
         self.pile.clear()
 
     def response_cycle(self, event, event_player=None, event_data=None):
-        if self.original_phase is None:
+        # only the outermost cycle owns restoring self.phase/original_phase; nested cycles
+        # (e.g. a STATUS_ADDED check fired while resolving a card played in an outer
+        # CARD_PLAYED cycle) must not clobber the outer cycle's bookkeeping
+        is_outermost_cycle = self.original_phase is None
+        if is_outermost_cycle:
             self.original_phase = self.phase
         self.phase = Phase.RESPONSE
 
@@ -217,6 +232,8 @@ class Game:
                     response.trigger_target = event_data.card
 
                 if self.play_card(player, response):
+                    # restore priority to the event's owner now that the response resolved
+                    self.priority_player = original_priority
                     return True
             return False
 
@@ -240,7 +257,7 @@ class Game:
                     return True
 
         self.phase = self.original_phase
-        if event != ResponseEvent.CARD_PLAYED:
+        if is_outermost_cycle:
             self.original_phase = None
         return False
 
@@ -277,6 +294,9 @@ class Game:
         controller = self.field_controller(minion)
         if controller != self.active_player:
             print(f"Only {self.active_player.name}'s minions can attack this turn.")
+            return False
+        if minion.summoning_sick:
+            print(f"{minion.name} cannot attack the turn it was played.")
             return False
 
         defending_player = self.other_player(controller)
@@ -329,6 +349,12 @@ class Game:
             base_trigger, condition = effect_trigger.split(':', 1)
             if base_trigger != trigger:
                 return False
+
+            if condition == 'player':
+                return isinstance(target, Player)
+
+            if condition == 'minion':
+                return isinstance(target, Minion)
 
             if condition in self.card_types:
                 return condition == getattr(target, 'type', None)
@@ -411,3 +437,4 @@ class ResponseEvent(Enum):
     AFTER_DAMAGE = 5
     AFTER_TURN_END = 6
     CARD_PLAYED = 7
+    STATUS_ADDED = 8
