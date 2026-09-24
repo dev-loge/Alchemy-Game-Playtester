@@ -1,5 +1,5 @@
 from game_parts.card import Effect
-from game_parts.effects import add_status, deal_damage, heal, draw_cards, peer, play_card, shuffle_air, remove_from_zone, change_attack
+from game_parts.effects import add_status, deal_damage, heal, draw_cards, peer, play_card, shuffle_air, remove_from_zone, change_attack, cancel_event
 
 def when(trigger, resolver):
 	if isinstance(resolver, Effect):
@@ -75,6 +75,7 @@ effects_by_name = {
 	"Crystallize": (when('resolve', remove_from_zone('self', 'any:set', 'hand', 'banish', 'player', target_filter="status_only")),
 					when('resolve', add_status('Frost', 'any:get', target_filter="owner", zone="hand"))),
 
-	"Disperse": (when('resolve', heal('any:get', target_filter="owner")), 
+	"Disperse": (when('resolve', cancel_event()),
+				 when('resolve', heal('any:get', target_filter="owner")),
 			  	 when('resolve', draw_cards('any:get'))),
 }

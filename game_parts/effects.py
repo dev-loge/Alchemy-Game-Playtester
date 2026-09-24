@@ -1,4 +1,4 @@
-from random import random
+import random
 
 from .card import Effect, Minion, Status
 
@@ -87,7 +87,10 @@ def select_player_target(game, source, target_filter, action_desc):
 
 
 def resolve_player_target(game, source, target, target_filter, action_desc):
-    if target is not None:
+    filter_names = target_filter if isinstance(target_filter, (list, tuple)) else [target_filter]
+    is_deterministic = any(name in ("owner", "self") for name in filter_names if isinstance(name, str))
+
+    if target is not None and not is_deterministic:
         player = target.owner if isinstance(target, Minion) else target
         filters = normalize_filters("player_only") + normalize_filters(target_filter)
         if is_valid_target(player, source, filters):
@@ -154,13 +157,21 @@ def draw_cards(amount, player=None):
 
         count = resolve_effect_amount(source, amount, max_value=None, label="cards")
 
-        def draw(player, amount):
-            for _ in range(amount):
-                drawn_card = player.draw()
+        def draw(drawing_player, amount):
+            from .game import ResponseEvent, EventData
+
+            # a responder may cancel this pending draw or adjust its amount
+            event_data = EventData(amount=amount, player=drawing_player)
+            game.check_interception(ResponseEvent.DRAW_PENDING, source.owner, event_data)
+            if event_data.cancelled:
+                return
+
+            for _ in range(event_data.amount):
+                drawn_card = drawing_player.draw()
                 if drawn_card:
-                    print(f"{player.name} draws {drawn_card.name}.")
+                    print(f"{drawing_player.name} draws {drawn_card.name}.")
                 else:
-                    print(f"{player.name} cannot draw a card. Deck is empty.")
+                    print(f"{drawing_player.name} cannot draw a card. Deck is empty.")
 
         if player == 'both':
             for p in game.players:
@@ -320,7 +331,15 @@ def deal_damage(amount, target_filter=None):
                 )
                 target = valid_targets[prompt_target_index(len(valid_targets))]
 
-        game.take_damage(source, target, resolved_amount)
+        from .game import ResponseEvent, EventData
+
+        # a responder may cancel this pending damage or adjust its amount
+        event_data = EventData(amount=resolved_amount, target=target)
+        game.check_interception(ResponseEvent.DAMAGE_PENDING, source.owner, event_data)
+        if event_data.cancelled:
+            return True
+
+        game.take_damage(source, event_data.target, event_data.amount)
 
         return True
 
@@ -358,8 +377,17 @@ def heal(amount, target_filter=None):
                 target = valid_targets[prompt_target_index(len(valid_targets))]
 
         if hasattr(target, 'hp'):
-            target.hp += resolved_amount
-            print(f"{source.owner.name} heals {resolved_amount} HP on {target.name}. Current HP: {target.hp}")
+            from .game import ResponseEvent, EventData
+
+            # a responder may cancel this pending heal or adjust its amount
+            event_data = EventData(amount=resolved_amount, target=target)
+            game.check_interception(ResponseEvent.HEAL_PENDING, source.owner, event_data)
+            if event_data.cancelled:
+                return True
+
+            target = event_data.target
+            target.hp += event_data.amount
+            print(f"{source.owner.name} heals {event_data.amount} HP on {target.name}. Current HP: {target.hp}")
         return True
 
     return resolver
@@ -416,7 +444,23 @@ def play_card():
             print(f"{source.name} is not in any player's hand and cannot be played.")
             return False
 
-        return game.play_card(player, source)
+        # this is a forced play from the card's own effect, not a priority-based
+        # play, so it shouldn't grant a bonus Combo opportunity
+        return game.play_card(player, source, allow_combo=False)
+
+    return resolver
+
+def cancel_event():
+    # generic response effect: cancels whatever pending event this card was played
+    # in response to (see Game.check_interception). Use alongside the responder's
+    # other effects, e.g. Disperse heals/draws AND cancels the status add it saw.
+    def resolver(game, source, target=None):
+        event_data = getattr(source, 'intercepted_event', None)
+        if event_data is None:
+            print(f"{source.name} has no pending event to cancel.")
+            return False
+        event_data.cancelled = True
+        return True
 
     return resolver
 
@@ -560,15 +604,17 @@ def add_status(status_name, amount, target_filter=None, zone="deck"):
         if resolved_amount > 0:
             from .game import ResponseEvent, EventData
 
-            game.response_cycle(
-                ResponseEvent.STATUS_ADDED,
-                event_player=source.owner,
-                event_data=EventData(
-                    amount=resolved_amount,
-                    target_player=target_player,
-                    status_name=status_name,
-                ),
+            # a responder (e.g. Disperse) may cancel this pending status add via
+            # cancel_event(), or adjust its amount instead of cancelling outright
+            event_data = EventData(
+                amount=resolved_amount,
+                target_player=target_player,
+                status_name=status_name,
             )
+            game.check_interception(ResponseEvent.STATUS_ADDED, source.owner, event_data)
+            if event_data.cancelled:
+                return True
+            resolved_amount = event_data.amount
 
         for _ in range(resolved_amount):
             create_status_card(
@@ -580,7 +626,7 @@ def add_status(status_name, amount, target_filter=None, zone="deck"):
             )
             if config["shuffle"]:
                 target_player.deck.shuffle()
-            print(f"{target_player.name} received {resolved_amount} '{status_name}' in their {zone}.")
+        print(f"{target_player.name} received {resolved_amount} '{status_name}' in their {zone}.")
         return True
 
     return resolver

@@ -29,6 +29,10 @@ class Player:
                 if effect.trigger == 'draw':
                     effect.resolve(self.game, card)
 
+        # deck may have just run out; reshuffle the discard pile back in
+        if self.game is not None:
+            self.game.check_empty_deck(self)
+
         return card
 
     def remove_from_hand(self, card):

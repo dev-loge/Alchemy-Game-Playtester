@@ -12,6 +12,9 @@ class Card:
         self.owner = None
         self.effects = []
         self.trigger_target = None
+        # set on a Trap/Reaction when it's played in response to a pending, interceptable
+        # event, so its own effects can read/mutate that event (e.g. cancel_event())
+        self.intercepted_event = None
 
     def create_instance(self):
         return copy.deepcopy(self)

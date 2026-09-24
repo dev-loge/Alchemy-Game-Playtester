@@ -23,7 +23,7 @@ def cards_from_names(names):
         chosen.append(card.create_instance())
     return chosen
 
-
+# we need bigger decks, more win-condition cards 
 burn_deck = [
     "Heat", "Heat", "Heat", "Heat", "Flame", "Flame", "Flame", "Lava",
     "Basking Lizard", "Basking Lizard", "Basking Lizard", "Scorch-pion", "Scorch-pion", "Scorch-pion",

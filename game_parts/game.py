@@ -54,6 +54,16 @@ class Game:
                 return player
         return card.owner
 
+    def check_empty_deck(self, player):
+        # pauses all game actions until the player's discard is shuffled back into their deck
+        if player.deck is None or player.deck.cards or not player.discard:
+            return
+        print(f"{player.name}'s deck is empty. Pausing game to shuffle their discard pile into their deck.")
+        player.deck.cards.extend(player.discard)
+        player.discard.clear()
+        player.deck.shuffle()
+        print(f"{player.name} shuffled their discard pile into their deck. Resuming game.")
+
     def start_turn(self):
         self.priority_player = self.active_player
 
@@ -95,7 +105,7 @@ class Game:
             else:
                 self.priority_player = self.active_player
 
-    def play_card(self, player, card):
+    def play_card(self, player, card, allow_combo=True):
         # Can card be played?
         if player != self.priority_player:
             print(f"It is not {player.name}'s priority. Cannot play card.")
@@ -172,7 +182,7 @@ class Game:
 
         # Trigger response cycle
         event_data = EventData(card=card)
-        if self.response_cycle(ResponseEvent.CARD_PLAYED, player, event_data):
+        if self.response_cycle(ResponseEvent.CARD_PLAYED, player, event_data, allow_combo=allow_combo):
             return True
 
         # End Chain
@@ -187,8 +197,12 @@ class Game:
     def resolve_pile(self):
         print('Resolving pile')
 
-        self.pile.reverse()
-        for card in self.pile:
+        # pop one card at a time (LIFO) rather than snapshotting the whole pile: a
+        # response played mid-resolution (e.g. a Trap) can append new cards and
+        # trigger a nested resolve_pile() call, and each card must resolve exactly
+        # once even when that happens.
+        while self.pile:
+            card = self.pile.pop()
             print(f"Resolving card: {card.name}")
 
             if card.type == 'Minion' or card.type == 'Relic':
@@ -210,9 +224,11 @@ class Game:
                 elif card.type == 'Status':
                     card.owner.add_to_banish(card) 
 
-        self.pile.clear()
+            # resolving this card may have emptied a deck; reshuffle before continuing the pile
+            for player in self.players:
+                self.check_empty_deck(player)
 
-    def response_cycle(self, event, event_player=None, event_data=None):
+    def response_cycle(self, event, event_player=None, event_data=None, allow_combo=True):
         # only the outermost cycle owns restoring self.phase/original_phase; nested cycles
         # (e.g. a STATUS_ADDED check fired while resolving a card played in an outer
         # CARD_PLAYED cycle) must not clobber the outer cycle's bookkeeping
@@ -231,6 +247,11 @@ class Game:
                 if response.type == "Trap" and hasattr(event_data, 'card'):
                     response.trigger_target = event_data.card
 
+                # generic side-channel so the response's own effects can read/mutate
+                # the pending event they're responding to (e.g. cancel_event())
+                if event_data is not None:
+                    response.intercepted_event = event_data
+
                 if self.play_card(player, response):
                     # restore priority to the event's owner now that the response resolved
                     self.priority_player = original_priority
@@ -247,8 +268,8 @@ class Game:
         if priority_player_response(self.priority_player, event, event_player, event_data):
             return True
 
-        # Combo if a card was played
-        if event == ResponseEvent.CARD_PLAYED:
+        # Combo if a card was played, but not for effect-forced plays (e.g. Frost's end_turn self-play)
+        if event == ResponseEvent.CARD_PLAYED and allow_combo:
             self.phase = Phase.COMBO
             self.priority_player = original_priority
             combo = self.priority_player.request_play_card('Combo')
@@ -260,6 +281,17 @@ class Game:
         if is_outermost_cycle:
             self.original_phase = None
         return False
+
+    def check_interception(self, event, event_player, event_data):
+        # gives responders (Traps/Reactions) a chance to cancel or modify a pending
+        # effect before it happens. event_data should carry whatever fields the
+        # pending effect cares about (e.g. amount, target); a responder's own
+        # effects may mutate any of those fields via their `intercepted_event`
+        # reference, or cancel the effect outright with cancel_event(). Callers
+        # should re-read event_data afterward (not just the return value) to pick
+        # up any non-cancelling modifications.
+        self.response_cycle(event, event_player=event_player, event_data=event_data, allow_combo=False)
+        return event_data.cancelled
 
     def take_damage(self, source, target, amount):
         if hasattr(target, 'hp'):
@@ -416,6 +448,8 @@ class Game:
 
 class EventData:
     def __init__(self, **values):
+        # interceptable events default to not-cancelled unless a responder says otherwise
+        self.cancelled = False
         self.__dict__.update(values)
 
 
@@ -438,3 +472,8 @@ class ResponseEvent(Enum):
     AFTER_TURN_END = 6
     CARD_PLAYED = 7
     STATUS_ADDED = 8
+    # pending events fire before their effect actually happens, giving responders
+    # a chance to cancel or modify it (see Game.check_interception)
+    DAMAGE_PENDING = 9
+    HEAL_PENDING = 10
+    DRAW_PENDING = 11

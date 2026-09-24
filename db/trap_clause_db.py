@@ -22,4 +22,7 @@ def trap_clause_check(trap, event, event_player, event_data, holder):
 		trap.any = amount
 		return True
 
-	return True
+	# unrecognized traps require an explicit clause above; with many pending events now
+	# firing (DAMAGE_PENDING, HEAL_PENDING, DRAW_PENDING, etc.), defaulting to True here
+	# would make every future trap playable in response to nearly anything
+	return False
