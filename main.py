@@ -23,7 +23,7 @@ def cards_from_names(names):
         chosen.append(card.create_instance())
     return chosen
 
-# we need bigger decks, more win-condition cards 
+# Test Decks
 burn_deck = [
     "Heat", "Heat", "Heat", "Heat", "Flame", "Flame", "Flame", "Lava",
     "Basking Lizard", "Basking Lizard", "Basking Lizard", "Scorch-pion", "Scorch-pion", "Scorch-pion",
@@ -50,6 +50,24 @@ air_deck = [
     "Bird Tamer", "Bird Tamer", "Bird Tamer", "Baby Roc", "Baby Roc", "Baby Roc",
     "Gale", "Gale", "Gale", "Disperse", "Disperse", 
     "Updraft",
+]
+
+# My Decks:
+
+# Load up on status cards to dump into Gulping Toad, 
+self_status_deck = [
+    "Lake", "Puddle", "Puddle", "Puddle", "Drop", "Drop", "Boulder", "Rock", "Rock", "Rock", "Pebble",
+    "Blizzard Elemental", "Blizzard Elemental", "Blizzard Elemental", "Snowgrazer", "Snowgrazer", "Snowgrazer",
+    "Frozen Mist", "Frozen Mist", "Frozen Mist", "Frostfang", "Frostfang",
+    "Gulping Toad", "Gulping Toad", "Gulping Toad", "Ground Pound", "Ground Pound",
+    "Extra Dose", "Extra Dose", "Extra Dose", "Venomous Snake"
+]
+
+# Pump up up Jet-maw then unleash it on the opponent, kill them before the air goes away!
+jet-maw_burn = [
+    "Gust", "Breeze", "Breeze", "Flame", "Flame"
+    "Jet-maw", "Jet-maw", "Jet-maw", "Baby Roc", "Baby Roc", "Baby Roc"
+    "Scorch-pion", "Scorch-pion", "Scorch-pion", "Ember", "Ember", "Ember"
 ]
 
 player1_deck = cards_from_names(frost_deck)

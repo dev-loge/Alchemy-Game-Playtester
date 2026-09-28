@@ -68,5 +68,23 @@ def load_cards(file_path):
         
             cards.append(card)
 
+    card_names = {card.name for card in cards}
+
+    # None marks a card as intentionally having no effects, exclude it from the missing report
+    missing_effects = sorted(
+        name for name in card_names
+        if name not in effects_by_name or (effects_by_name[name] is not None and not effects_by_name[name])
+    )
+    if missing_effects:
+        print(f"Cards loaded without coded effects ({len(missing_effects)}):")
+        for name in missing_effects:
+            print(f"  - {name}")
+
+    orphaned_effects = sorted(name for name in effects_by_name if name not in card_names)
+    if orphaned_effects:
+        print(f"Effects coded for cards missing from CSV ({len(orphaned_effects)}):")
+        for name in orphaned_effects:
+            print(f"  - {name}")
+
     return cards
 

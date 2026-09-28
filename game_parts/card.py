@@ -15,6 +15,8 @@ class Card:
         # set on a Trap/Reaction when it's played in response to a pending, interceptable
         # event, so its own effects can read/mutate that event (e.g. cancel_event())
         self.intercepted_event = None
+        # targets resolved by the card's last-run effect, so later effects on the same card can reuse them
+        self.saved_targets = []
 
     def create_instance(self):
         return copy.deepcopy(self)
@@ -47,11 +49,31 @@ class Trap(Card):
 class Minion(Card):
     def __init__(self, id, name, type, element, cost, text, atk, hp):
         super().__init__(id, name, type, element, cost, text)
-        self.atk = int(atk)
+        self._base_atk = int(atk)
         self.hp = int(hp)
         self.rested = False
         self.frozen = False
         self.summoning_sick = False
+        # 'static:<stat>' effects recompute a derived stat every time it's read (see add_effect)
+        self.static_atk_modifiers = []
+
+    @property
+    def atk(self):
+        return self._base_atk + sum(modifier(self) for modifier in self.static_atk_modifiers)
+
+    @atk.setter
+    def atk(self, value):
+        self._base_atk = value
+
+    def add_effect(self, effect):
+        if isinstance(effect.trigger, str) and effect.trigger.startswith('static:'):
+            stat = effect.trigger.split(':', 1)[1]
+            modifiers = getattr(self, f'static_{stat}_modifiers', None)
+            if modifiers is None:
+                raise ValueError(f"Unsupported static modifier stat: {stat}")
+            modifiers.append(effect.resolver)
+            return
+        super().add_effect(effect)
 
     def dies(self, game=None):
         if self.owner is None:

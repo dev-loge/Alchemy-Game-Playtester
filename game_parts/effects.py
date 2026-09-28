@@ -12,6 +12,9 @@ TARGET_FILTERS = {
     "status_only": lambda target: isinstance(target, Status),
     "friendly_only": lambda target, source: _owner_of(target) == _owner_of(source),
     "enemy_only": lambda target, source: _owner_of(target) != _owner_of(source),
+    "friendly_minion_only": lambda target, source: isinstance(target, Minion) and _owner_of(target) == _owner_of(source),
+    "enemy_minion_only": lambda target, source: isinstance(target, Minion) and _owner_of(target) != _owner_of(source),
+    "saved_target_only": lambda target, source: target in getattr(source, 'saved_targets', []),
     "trigger_target": lambda target, source: _owner_of(target) == _owner_of(getattr(source, 'trigger_target', None)),
     "self": lambda target, source: target is source,
     "owner": lambda target, source: _owner_of(target) == _owner_of(source),
@@ -111,6 +114,49 @@ def describe_target(target):
     return f"{target.name}(HP {target.hp})"
 
 
+def save_targets(source, targets):
+    # lets later effects on the same card reference what an earlier effect targeted (e.g. saved:atk)
+    source.saved_targets = list(targets)
+
+
+def resolve_targets(game, source, target, target_filter, count=1, hit_all=False, action_desc="target", include_players=True):
+    if target is not None:
+        return [target]
+
+    valid_targets = []
+    for player in game.players:
+        if include_players:
+            valid_targets.append(player)
+        for minion in player.field:
+            if isinstance(minion, Minion):
+                valid_targets.append(minion)
+
+    valid_targets = [t for t in valid_targets if is_valid_target(t, source, target_filter)]
+    if not valid_targets:
+        print(f"No valid targets for {action_desc}.")
+        return []
+
+    if hit_all:
+        return valid_targets
+
+    chosen_targets = []
+    for _ in range(count):
+        if not valid_targets:
+            break
+        if len(valid_targets) == 1:
+            chosen = valid_targets[0]
+        else:
+            print(
+                f"Choose a target for {action_desc}: "
+                f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
+            )
+            chosen = valid_targets[prompt_target_index(len(valid_targets))]
+        chosen_targets.append(chosen)
+        valid_targets.remove(chosen)
+
+    return chosen_targets
+
+
 def resolve_effect_amount(source, amount, *, max_value=None, label="cards", prompt_text=None):
     if isinstance(amount, str) and amount.startswith("any:"):
         mode = amount.split(":", 1)[1]
@@ -142,6 +188,13 @@ def resolve_effect_amount(source, amount, *, max_value=None, label="cards", prom
             if stored is None:
                 raise ValueError(f"{source.name} has no saved amount for any:get.")
             return int(stored)
+
+    if isinstance(amount, str) and amount.startswith("saved:"):
+        attr = amount.split(":", 1)[1]
+        saved = getattr(source, 'saved_targets', None)
+        if not saved:
+            raise ValueError(f"{source.name} has no saved targets for saved:{attr}.")
+        return sum(int(getattr(saved_target, attr, 0)) for saved_target in saved)
 
     if amount == 'any':
         if max_value is None:
@@ -302,92 +355,66 @@ def remove_from_zone(player, amount, zone, destination, choice=None, target_filt
 
     return resolver
 
-def deal_damage(amount, target_filter=None):
+def deal_damage(amount, target_filter=None, hit_all=False):
     def resolver(game, source, target=None):
         resolved_amount = resolve_effect_amount(source, amount, label="damage")
 
-        if target is None:
-            valid_targets = []
-            for player in game.players:
-                valid_targets.append(player)
-                for minion in player.field:
-                    if isinstance(minion, Minion):
-                        valid_targets.append(minion)
+        targets = resolve_targets(
+            game, source, target, target_filter, hit_all=hit_all,
+            action_desc=f"{source.name} to deal {resolved_amount} damage",
+        )
+        if not targets:
+            return False
 
-            valid_targets = [
-                t for t in valid_targets
-                if is_valid_target(t, source, target_filter)
-            ]
-            if not valid_targets:
-                print("No valid targets.")
-                return False
-
-            if len(valid_targets) == 1:
-                target = valid_targets[0]
-            else:
-                print(
-                    f"Choose a target for {source.name} to deal {resolved_amount} damage: "
-                    f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
-                )
-                target = valid_targets[prompt_target_index(len(valid_targets))]
+        save_targets(source, targets)
 
         from .game import ResponseEvent, EventData
 
-        # a responder may cancel this pending damage or adjust its amount
-        event_data = EventData(amount=resolved_amount, target=target)
-        game.check_interception(ResponseEvent.DAMAGE_PENDING, source.owner, event_data)
-        if event_data.cancelled:
-            return True
+        for current_target in targets:
+            # a responder may cancel this pending damage or adjust its amount
+            event_data = EventData(amount=resolved_amount, target=current_target)
+            game.check_interception(ResponseEvent.DAMAGE_PENDING, source.owner, event_data)
+            if event_data.cancelled:
+                continue
 
-        game.take_damage(source, event_data.target, event_data.amount)
+            game.take_damage(source, event_data.target, event_data.amount)
 
         return True
 
     return resolver
 
-def heal(amount, target_filter=None):
+def heal(amount, target_filter=None, hit_all=False):
     def resolver(game, source, target=None):
         resolved_amount = resolve_effect_amount(source, amount, label="healing")
 
         # trigger context (e.g. a 'card_played' or 'effect_triggered' condition) may pass
         # along a non-healable object (the card that was played), so fall back to selection
-        if target is None or not hasattr(target, 'hp'):
-            valid_targets = []
-            for player in game.players:
-                valid_targets.append(player)
-                for minion in player.field:
-                    if isinstance(minion, Minion):
-                        valid_targets.append(minion)
+        effective_target = target if target is not None and hasattr(target, 'hp') else None
+        targets = resolve_targets(
+            game, source, effective_target, target_filter, hit_all=hit_all,
+            action_desc=f"{source.name} to heal {resolved_amount}",
+        )
+        if not targets:
+            return False
 
-            valid_targets = [
-                t for t in valid_targets
-                if is_valid_target(t, source, target_filter)
-            ]
-            if not valid_targets:
-                print("No valid heal targets.")
-                return False
+        save_targets(source, targets)
 
-            if len(valid_targets) == 1:
-                target = valid_targets[0]
-            else:
-                print(
-                    f"Choose a target for {source.name} to heal {resolved_amount}: "
-                    f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
-                )
-                target = valid_targets[prompt_target_index(len(valid_targets))]
+        from .game import ResponseEvent, EventData
 
-        if hasattr(target, 'hp'):
-            from .game import ResponseEvent, EventData
+        for current_target in targets:
+            if not hasattr(current_target, 'hp'):
+                continue
 
             # a responder may cancel this pending heal or adjust its amount
-            event_data = EventData(amount=resolved_amount, target=target)
+            event_data = EventData(amount=resolved_amount, target=current_target)
             game.check_interception(ResponseEvent.HEAL_PENDING, source.owner, event_data)
             if event_data.cancelled:
-                return True
+                continue
 
-            target = event_data.target
-            target.hp += event_data.amount
-            print(f"{source.owner.name} heals {event_data.amount} HP on {target.name}. Current HP: {target.hp}")
+            healed_target = event_data.target
+            healed_target.hp += event_data.amount
+            print(f"{source.owner.name} heals {event_data.amount} HP on {healed_target.name}. Current HP: {healed_target.hp}")
+
         return True
 
     return resolver
@@ -464,16 +491,89 @@ def cancel_event():
 
     return resolver
 
-def change_attack(amount, reduce = False, temp=True, target_filter=None):
+def count_in_zone(card_name, player='opponent', zone='discard'):
+    # use with when('static:atk', ...) for cards whose stat is always derived from board state
+    def modifier(minion):
+        owner = minion.owner
+        if owner is None or owner.game is None:
+            return 0
+
+        if player == 'opponent':
+            zone_player = owner.game.other_player(owner)
+        else:
+            zone_player = owner
+
+        return sum(1 for card in getattr(zone_player, zone) if card.name == card_name)
+
+    return modifier
+
+def change_attack(amount, reduce=False, temp=True, target_filter=None, hit_all=False):
     def resolver(game, source, target=None):
-        # Get target similar to how deal_damage and heal get theirs, using target_filter system (must be a minion)
-        amount = resolve_effect_amount(amount, game, source, target)
+        resolved_amount = resolve_effect_amount(source, amount, label="attack")
+        delta = -resolved_amount if reduce else resolved_amount
 
-        
-        # Change the attack of the targetted minion(s) by amount (add unless reduce=True)
+        targets = resolve_targets(
+            game, source, target, target_filter, hit_all=hit_all,
+            action_desc=f"{source.name} to change ATK", include_players=False,
+        )
+        if not targets:
+            return False
 
-        # If temp, save the changed amount in source.temp_effects
-        
+        save_targets(source, targets)
+
+        for minion in targets:
+            if temp:
+                # re-applied on every atk read rather than mutating base ATK, so it can be reverted by removing the modifier
+                minion.static_atk_modifiers.append(lambda m, delta=delta: delta)
+            else:
+                minion.atk += delta
+            print(f"{minion.name}'s ATK changes by {delta}. Current ATK: {minion.atk}")
+
+        return True
+
+    return resolver
+
+def change_mode(new_mode, amount=1, target_filter=None, hit_all=False):
+    if new_mode not in ("rest", "un-rest"):
+        raise ValueError(f"Invalid new_mode: {new_mode!r}. Expected 'rest' or 'un-rest'.")
+    rested = new_mode == "rest"
+
+    def resolver(game, source, target=None):
+        resolved_amount = resolve_effect_amount(source, amount, label="targets")
+
+        targets = resolve_targets(
+            game, source, target, target_filter, count=resolved_amount, hit_all=hit_all,
+            action_desc=f"{source.name} to {new_mode}", include_players=False,
+        )
+        if not targets:
+            return False
+
+        save_targets(source, targets)
+
+        for minion in targets:
+            minion.rested = rested
+
+        return True
+
+    return resolver
+
+def freeze(amount=1, target_filter=None, hit_all=False):
+    def resolver(game, source, target=None):
+        resolved_amount = resolve_effect_amount(source, amount, label="targets")
+
+        targets = resolve_targets(
+            game, source, target, target_filter, count=resolved_amount, hit_all=hit_all,
+            action_desc=f"{source.name} to freeze", include_players=False,
+        )
+        if not targets:
+            return False
+
+        save_targets(source, targets)
+
+        for minion in targets:
+            minion.frozen = True
+            print(f"{minion.name} is now frozen.")
+
         return True
 
     return resolver
@@ -483,7 +583,7 @@ def change_attack(amount, reduce = False, temp=True, target_filter=None):
 #earth
 #water
 #air
-def shuffle_air(player, card):
+def shuffle_air(player, card=None):
     def resolver(game, source, target=None):
 
         def shuffle_air_cards(target_player):

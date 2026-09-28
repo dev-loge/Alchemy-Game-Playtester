@@ -215,13 +215,13 @@ class Game:
                 
                 # Determine destination
                 self.field_controller(card).remove_from_field(card)
-                if card.type == 'Spell' or card.type == 'Trap' or card.type == 'Power':
+                if card.type == 'Spell' or card.type == 'Trap':
                     if 'Exhort' in card.text:
                         print(f'Card {card.name} exhorted')
                         card.owner.add_to_banish(card)
                     else:
                         card.owner.add_to_discard(card)
-                elif card.type == 'Status':
+                elif card.type == 'Status' or card.type == 'Power':
                     card.owner.add_to_banish(card) 
 
             # resolving this card may have emptied a deck; reshuffle before continuing the pile

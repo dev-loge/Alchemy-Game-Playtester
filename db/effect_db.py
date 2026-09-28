@@ -1,5 +1,5 @@
 from game_parts.card import Effect
-from game_parts.effects import add_status, deal_damage, heal, draw_cards, peer, play_card, shuffle_air, remove_from_zone, change_attack, cancel_event
+from game_parts.effects import add_status, change_mode, count_in_zone, deal_damage, freeze, heal, draw_cards, peer, play_card, shuffle_air, remove_from_zone, change_attack, cancel_event
 
 def when(trigger, resolver):
 	if isinstance(resolver, Effect):
@@ -11,20 +11,21 @@ effects_by_name = {
 	# Powers
 	"Heat": (when('resolve', deal_damage(1)), when('resolve', draw_cards(2))),
 	"Flame": (when('resolve', deal_damage(1)), when('resolve', draw_cards(1))),
-	"Lava": (),
+	"Lava": None,
 	"Pebble": (when('resolve', heal(1)), when('resolve', draw_cards(2))),
 	"Rock": (when('resolve', heal(1)), when('resolve', draw_cards(1))),
-	"Boulder": (),
+	"Boulder": None,
 	"Drop": (when('resolve', peer(1)), when('resolve', draw_cards(2))),
 	"Puddle": (when('resolve', peer(1)), when('resolve', draw_cards(1))),
-	"Lake": (),
+	"Lake": None,
 	"Breath": (when('resolve', add_status("Air", 1, zone="discard")), when('resolve', draw_cards(2))),
 	"Breeze": (when('resolve', add_status("Air", 1, zone="discard")), when('resolve', draw_cards(1))),
-	"Gust": (),
+	"Gust": None,
 	# TEST Cards
-	"Ember": (when('resolve', deal_damage(1)), when('resolve', draw_cards(1))),
-	"FireFly": (when('dies', deal_damage(1, target_filter="minion_only")),),
-	"Ignite": (when('resolve', deal_damage(2, target_filter="trigger_target")),),
+	# "Ember": (when('resolve', deal_damage(1)), when('resolve', draw_cards(1))),
+	# "FireFly": (when('dies', deal_damage(1, target_filter="minion_only")),),
+	# "Ignite": (when('resolve', deal_damage(2, target_filter="trigger_target")),),
+	
 	# Status Effects
 	"Burn": (when('draw', deal_damage(1, target_filter="owner")),),
 	"Frost": (when('resolve', draw_cards(1)), when('end_turn', play_card())),
@@ -62,7 +63,7 @@ effects_by_name = {
 
 	"Blizzard Elemental": (when('attacks', add_status("Frost", 3, target_filter="owner", zone="hand")),),
 
-	"The Monster": (when('card_played:Poison', draw_cards(1)), 
+	"The Monster": (when('card_played:Poison', change_mode('un-rest', 1, target_filter="self")), 
 					when('blocked', add_status("Poison", 2, target_filter="trigger_target"))),
 
 	"Cauterize": (when('resolve', remove_from_zone('self', 'any:set', 'deck', 'banish', 'player', target_filter="status_only")),
@@ -78,4 +79,16 @@ effects_by_name = {
 	"Disperse": (when('resolve', cancel_event()),
 				 when('resolve', heal('any:get', target_filter="owner")),
 			  	 when('resolve', draw_cards('any:get'))),
+
+	"Jet-maw": (when('static:atk', count_in_zone("Air", player="opponent", zone="discard")),
+	            when('attacks', add_status("Air", 1, target_filter="trigger_target")),
+	            when('deals_damage:player', shuffle_air('opponent'))),
+
+	"Immolate": (when('resolve', remove_from_zone('opponent', 1, 'field', 'discard', 'player')),),
+
+	"Ground Pound": (when('resolve', change_mode('rest', 1, target_filter="friendly_minion_only")),
+	                 when('resolve', deal_damage('saved:atk', target_filter="enemy_minion_only", hit_all=True))),
+
+	"Flash-freeze": (when('resolve', change_mode('rest', target_filter="enemy_minion_only", hit_all=True)),
+	                 when('resolve', freeze(target_filter="saved_target_only", hit_all=True))),
 }
