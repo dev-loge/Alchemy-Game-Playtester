@@ -19,54 +19,62 @@ Draw 2",N/A,N/A,None,
 011,Rock,Power,+3G,3,Earth,N/A,"Heal 1
 Draw, Combo",N/A,N/A,None,
 012,Boulder,Power,+6G,6,Earth,N/A,Unplayable,N/A,N/A,None,
-013,Witchdoctor,Minion,-1G,-1,Earth,N/A,"When an opponent plays ""Poison"", Heal 1
+013,Witchdoctor,Minion,-1G,-1,Earth,N/A,"When you add ""Poison"" to a player's discard, Heal 1
 Combo",1,3,Poison,Defensive Synergy
-014,Basking Lizard,Minion,-1R,-1,Fire,N/A,"When an opponent draws ""Burn"", Heal 1
-Combo",1,3,Burn,Defensive Synergy
-015,Snowgrazer,Minion,-1B,-1,Water,N/A,"When an opponent plays ""Frost"", Heal 1
-Combo",1,3,Frost,Defensive Synergy
-016,Bird Tamer,Minion,-1Y,-1,Air,N/A,"When an opponent plays ""Air"", Heal 1
+014,Basking Lizard,Minion,-1R,-1,Fire,N/A,"When you add ""Burn"" to a player's deck, Heal 1",1,3,Burn,Defensive Synergy
+015,Snowgrazer,Minion,-1B,-1,Water,N/A,"When you play ""Frost"", Heal 1
+Combo",1,2,Frost,Defensive Synergy
+016,Bird Tamer,Minion,-1Y,-1,Air,N/A,"When ""Air"" leaves your opponent's disard, Heal 2
 Combo",1,3,Aerate,Defensive Synergy
-017,Venomous Snake,Minion,-1G,-1,Earth,N/A,"When this card deals dmg to a player, Add 2 ""Poison"" into a player's deck",2,2,Poison,Basic Offensive
-018,Scorch-pion,Minion,-1R,-1,Fire,N/A,"When this card deals dmg to a player, Add 1 ""Burn"" into a player's deck",2,2,Burn,Basic Offensive
-019,Frostfang,Minion,-1B,-1,Water,N/A,"When this card deals dmg to a player, Add 3 ""Frost"" into a player's deck",2,2,Frost,Basic Offensive
+017,Venomous Snake,Minion,-1G,-1,Earth,N/A,"When this card would deal dmg to your opponent, instead add that much ""Poison"" to their discard",3,1,Poison,Basic Offensive
+018,Scorch-pion,Minion,-1R,-1,Fire,N/A,"When this card deals dmg to a player, Shuffle 1 ""Burn"" into that player's deck
+Combo",2,2,Burn,Basic Offensive
+019,Frostfang,Minion,-1B,-1,Water,N/A,"When this card deals dmg to a player, Shuffle 3 ""Frost"" into that player's deck
+Initiative",1,2,Frost,Basic Offensive
 020,Baby Roc,Minion,-1Y,-1,Air,N/A,"When this card attacks, Aerate 1",2,2,Aerate,Basic Offensive
-021,Searing Wind,Spell,-2R,-2,Fire,N/A,"Add 3 ""Burn"" into a player's discard",N/A,N/A,Burn,Status Application
-022,Envenom,Spell,-2G,-2,Earth,N/A,"Add 4 ""Poison"" into a player's discard",N/A,N/A,Poison,Status Application
-023,Frostbite,Spell,-2B,-2,Water,N/A,"Add 4 ""Frost"" into a player's deck",N/A,N/A,Frost,Status Application
-024,Gale,Spell,-2Y,-2,Air,N/A,Aerate 5,N/A,N/A,Aerate,Status Application
-025,Sandstorm,Spell,-3R,-3,Fire,N/A,"Each player banishes their hand, then draws 5",N/A,N/A,Burn,Utility
-026,Updraft,Spell,-3Y,-3,Air,N/A,"Shuffle all ""Air"" in a player's discard into their deck, if 5+ ""Air"" were shuffled this way, also shuffle 1 minion from their field into their deck",N/A,N/A,Aerate,Removal
-027,Blizzard Elemental,Minion,-3B,-3,Water,N/A,"When this card attacks, Add 3 ""Frost"" to your hand",2,4,Frost,Win Condition
-028,The Monster,Minion,-3G,-3,Earth,N/A,"When a player plays ""Poison"", un-rest this card
-When this card becomes blocked, Poison 2",3,4,Poison,Win Condition
+021,Searing Wind,Spell,-2R,-2,Fire,N/A,"Shuffle 3 ""Burn"" into a player's deck",N/A,N/A,Burn,Status Application
+022,Envenom,Spell,-2G,-2,Earth,N/A,Deal dmg equal to the amount of poison in your opponent's discard to them,N/A,N/A,Poison,Status Application
+023,Blizzard,Spell,-2B,-2,Water,N/A,"Add 10 ""Frost"" into both player's decks",N/A,N/A,Frost,Status Application
+024,Dissipate,Reaction,-2Y,-2,Air,N/A,"Discard a card from the pile, preventing its effects",N/A,N/A,None,Removal
+025,Sandstorm,Spell,-3R,-3,Fire,N/A,"Each player discards their hand, then draws 5",N/A,N/A,Burn,Utility
+026,Updraft,Spell,-3Y,-3,Air,N/A,"Aerate 3
+Shuffle all ""Air"" in a player's discard into their deck, if 5+ ""Air"" were shuffled this way, also shuffle 1 minion from their field into their deck",N/A,N/A,Aerate,Removal
+027,Blizzard Elemental,Minion,-3B,-3,Water,N/A,"When this card attacks, Add 2 ""Frost"" to your hand",2,4,Frost,Win Condition
+028,The Monster,Minion,-3G,-3,Earth,N/A,"This card gains ATK equal to the amount of ""Poison"" in your opponent's discard
+When this card deals dmg to your opponent, add 2 ""Poison"" to their discard",1,4,Poison,Win Condition
 029,Cauterize,Spell,-2R,-2,Fire,N/A,"Search your deck for any amount of status cards and banish them
 Shuffle 2 Burn into your deck",N/A,N/A,None,Anti-Status
 030,Gulping Toad,Minion,-2G,-2,Earth,N/A,"When you play this card, discard X status cards
-This card gains +X ATK and you Heal X",0,3,None,Anti-Status
+This card gains +2X ATK and you Heal X",0,3,None,Anti-Status
 031,Disperse,Trap,-2Y,-2,Air,When X status cards would be added to one of your zones,"Heal X, Draw X
 Exhort",N/A,N/A,None,Anti-Status
-032,Crystallize,Reaction,-2B,-2,Water,N/A,"Banish any number of cards from your hand
-Add that much ""Frost"" to your hand",N/A,N/A,None,Anti-Status
+032,Crystallize,Spell,-2B,-2,Water,N/A,"Banish any number of status cards from your hand
+Add that much ""Frost"" to your hand
+Combo",N/A,N/A,None,Anti-Status
 033,Jet-maw,Minion,-3Y,-3,Air,N/A,"This card gains ATK equal to the amount of ""Air"" in your opponent's discard
-When this card attacks, Aerate 1
+When this card attacks, Aerate 2
 When this card deals dmg to your opponent, shuffle all ""Air"" in their discard into their deck",0,4,Aerate,Win Condition
 034,Immolate,Spell,-3R,-3,Fire,N/A,"Discard 1 card from your opponent's field
 Exhort",N/A,N/A,None,Removal
 035,Ground Pound,Spell,-3R,-3,Earth,N/A,"Rest 1 of your un-rested minions, if you do it deals dmg to each of your opponent's minions equal to its ATK",N/A,N/A,None,Removal
 036,Flash-freeze,Spell,-3B,-3,Water,N/A,Rest all of your opponent's minions and Freeze them,N/A,N/A,None,Removal
-037,,,,#VALUE!,,,,,,,
-038,,,,#VALUE!,,,,,,,
-039,,,,#VALUE!,,,,,,,
-040,,,,#VALUE!,,,,,,,
-041,,,,#VALUE!,,,,,,,
-042,,,,#VALUE!,,,,,,,
-043,,,,#VALUE!,,,,,,,
-044,,,,#VALUE!,,,,,,,
-045,,,,#VALUE!,,,,,,,
-046,,,,#VALUE!,,,,,,,
-047,,,,#VALUE!,,,,,,,
-048,,,,#VALUE!,,,,,,,
+037,Frozen Mist,Spell,-1B,-1,Water,N/A,"Shuffle 3 ""Frost"" into a player's deck
+Draw, Combo",N/A,N/A,Frost,Combo
+038,Ember,Spell,-1R,-1,Fire,N/A,"Shuffle 1 ""Burn"" into a player's deck
+Draw, Combo, Exhort",N/A,N/A,Burn,Combo
+039,Extra Dose,Spell,-1G,-1,Earth,N/A,"Add 1 ""Poison"" into a players discard
+Draw, Combo, Exhort",N/A,N/A,Poison,Combo
+040,Drag,Spell,-1Y,-1,Air,N/A,"Aerate 2
+Draw, Combo",N/A,N/A,Aerate,Combo
+041,Ignite,Trap,-1R,-1,Fire,When an opponent plays a minion,Deal 3 dmg to that minion,N/A,N/A,None,Removal
+042,Slip,Trap,-1B,-1,Water,When an opponent plays a minion,Rest that minion and Freeze it,N/A,N/A,None,Removal
+043,Ambush,Trap,-1G,-1,Earth,When an opponent plays a minion,Un-rest one of your minions and it attacks that minion,N/A,N/A,None,Removal
+044,Swoop,Reaction,-1Y,-1,Air,N/A,"Bounce 1 minion w/ ATK ? the amount of ""Air"" in your opponent's discard",N/A,N/A,None,Removal
+045,Firebolt,Reaction,-1R,-1,Fire,N/A,Deal 2 dmg to a minion,N/A,N/A,None,Removal
+046,Fluid Thought,Spell,-2B,-2,Water,N/A,"Draw 2
+Combo",N/A,N/A,None,Card Advantage
+047,Re-double,Spell,-1G,-1,Earth,N/A,Un-rest one of your minions,N/A,N/A,None,Utility
+048,Evacuate,Spell,-3Y,-3,AIr,N/A,Bounce all minions,N/A,N/A,None,Removal
 049,,,,#VALUE!,,,,,,,
 050,,,,#VALUE!,,,,,,,
 051,,,,#VALUE!,,,,,,,

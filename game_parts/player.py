@@ -1,4 +1,6 @@
 from db.trap_clause_db import trap_clause_check
+from game_parts.card import format_card, format_card_list
+from game_parts import input as player_input
 
 class Player:
     def __init__(self, name):
@@ -40,7 +42,7 @@ class Player:
             self.hand.remove(card)
             return card
         else:
-            print(f"Card {card} not found in {self.name}'s hand. Cannot remove.")
+            print(f"Card {format_card(card)} not found in {self.name}'s hand. Cannot remove.")
         return None
 
     def remove_from_field(self, card):
@@ -48,7 +50,7 @@ class Player:
             self.field.remove(card)
             return card
         else:
-            print(f"Card {card} not found on {self.name}'s field. Cannot remove.")
+            print(f"Card {format_card(card)} not found on {self.name}'s field. Cannot remove.")
         return None
 
     def remove_from_discard(self, card):
@@ -56,7 +58,7 @@ class Player:
             self.discard.remove(card)
             return card
         else:
-            print(f"Card {card} not found in {self.name}'s discard pile. Cannot remove.")
+            print(f"Card {format_card(card)} not found in {self.name}'s discard pile. Cannot remove.")
         return None
 
     def remove_from_deck(self, card):
@@ -64,7 +66,7 @@ class Player:
             self.deck.cards.remove(card)
             return card
         else:
-            print(f"Card {card} not found in {self.name}'s deck. Cannot remove.")
+            print(f"Card {format_card(card)} not found in {self.name}'s deck. Cannot remove.")
         return None
 
     def add_to_hand(self, card):
@@ -102,9 +104,8 @@ class Player:
         if not playable_cards:
             print(f"{self.name} has no playable responses.")
         else:
-            print(f"{self.name}, you have the following playable responses: {[card.name for card in playable_cards]}")
-            choice = input(f"Enter the name of the card to play or 'pass': ").strip()
-            return next((card for card in playable_cards if card.name.lower() == choice.lower()), None)
+            print(f"{self.name}, you have the following playable responses: {format_card_list(playable_cards)}")
+            return player_input.prompt_card_choice("Enter the name of the card to play or 'pass': ", playable_cards)
 
         return None
 
@@ -122,12 +123,12 @@ class Player:
 
         #prompt player if they would like to play one of the playable cards or pass
         if playable_cards:
-            print(f"{self.name}, you have the following playable {card_type} cards: {[card.name for card in playable_cards]}")
-            choice = input("Enter the name of the card to play or 'pass' to skip: ").strip()
-            if choice.lower() != 'pass':
-                chosen_card = next((card for card in playable_cards if card.name.lower() == choice.lower()), None)
-                if chosen_card:
-                    return chosen_card
+            print(f"{self.name}, you have the following playable {card_type} cards: {format_card_list(playable_cards)}")
+            chosen_card = player_input.prompt_card_choice(
+                "Enter the name of the card to play or 'pass' to skip: ", playable_cards
+            )
+            if chosen_card:
+                return chosen_card
         else:
             print(f"{self.name} has no playable {card_type} cards.")
         

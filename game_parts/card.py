@@ -1,4 +1,40 @@
 import copy
+import os
+import sys
+
+
+CARD_COLORS = {
+    ("Fire", False): "38;5;208",
+    ("Fire", True): "31",
+    ("Earth", False): "38;5;120",
+    ("Earth", True): "32",
+    ("Water", False): "38;5;117",
+    ("Water", True): "34",
+    ("Air", False): "38;5;226",
+    ("Air", True): "38;5;136",
+}
+
+
+def format_card_text(text, element, card_type=None):
+    color = CARD_COLORS.get((element, card_type == "Power"))
+    if color is None or "NO_COLOR" in os.environ or not getattr(sys.stdout, "isatty", lambda: False)():
+        return text
+    return f"\033[{color}m{text}\033[0m"
+
+
+def format_card(card, text=None):
+    label = card.name if text is None else text
+    return format_card_text(label, getattr(card, "element", None), getattr(card, "type", None))
+
+
+def format_card_list(cards):
+    return "[" + ", ".join(format_card(card) for card in cards) + "]"
+
+
+def format_card_options(cards):
+    return "[" + ", ".join(
+        f"({index}, {format_card(card)})" for index, card in enumerate(cards)
+    ) + "]"
 
 # Master Card Class
 class Card:
@@ -12,6 +48,7 @@ class Card:
         self.owner = None
         self.effects = []
         self.trigger_target = None
+        self.effect_state = {}
         # set on a Trap/Reaction when it's played in response to a pending, interceptable
         # event, so its own effects can read/mutate that event (e.g. cancel_event())
         self.intercepted_event = None
@@ -85,12 +122,13 @@ class Minion(Card):
         # remove from field; owner and current controller can differ (e.g.
         # opponent-owned cards played from your hand)
         controller = game.field_controller(self) if game is not None else self.owner
-        controller.remove_from_field(self)
+        destination = 'banish' if 'Vanishing' in self.text else 'discard'
 
-        if 'Vanishing' in self.text:
-            self.owner.add_to_banish(self)
+        if game is not None:
+            game.change_zone(controller, [self], 'field', destination, destination_owner=self.owner)
         else:
-            self.owner.add_to_discard(self)
+            controller.remove_from_field(self)
+            getattr(self.owner, f'add_to_{destination}')(self)
 
         # trigger death effects
         if game is not None:

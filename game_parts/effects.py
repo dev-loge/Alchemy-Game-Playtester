@@ -1,6 +1,10 @@
+import ast
+import operator
 import random
+import re
 
-from .card import Effect, Minion, Status
+from .card import Effect, Minion, Status, format_card, format_card_options, format_card_text
+from . import input as player_input
 
 def _owner_of(entity):
     return getattr(entity, 'owner', entity)
@@ -15,9 +19,19 @@ TARGET_FILTERS = {
     "friendly_minion_only": lambda target, source: isinstance(target, Minion) and _owner_of(target) == _owner_of(source),
     "enemy_minion_only": lambda target, source: isinstance(target, Minion) and _owner_of(target) != _owner_of(source),
     "saved_target_only": lambda target, source: target in getattr(source, 'saved_targets', []),
-    "trigger_target": lambda target, source: _owner_of(target) == _owner_of(getattr(source, 'trigger_target', None)),
+    "trigger_target": lambda target, source: target is getattr(source, 'trigger_target', None),
+    "trigger_target_owner": lambda target, source: _owner_of(target) == _owner_of(getattr(source, 'trigger_target', None)),
     "self": lambda target, source: target is source,
     "owner": lambda target, source: _owner_of(target) == _owner_of(source),
+}
+
+COMPARATORS = {
+    ">": operator.gt,
+    ">=": operator.ge,
+    "<": operator.lt,
+    "<=": operator.le,
+    "==": operator.eq,
+    "!=": operator.ne,
 }
 
 
@@ -57,16 +71,7 @@ def is_valid_target(target, source, target_filter):
     return True
 
 def prompt_target_index(count, prompt="Enter target index: "):
-    while True:
-        choice = input(prompt).strip()
-        try:
-            index = int(choice)
-        except ValueError:
-            print("Invalid target index. Please try again.")
-            continue
-        if 0 <= index < count:
-            return index
-        print("Invalid target index. Please try again.")
+    return player_input.prompt_index(count, prompt, retry_message="Invalid target index. Please try again.")
 
 
 def select_player_target(game, source, target_filter, action_desc):
@@ -82,10 +87,11 @@ def select_player_target(game, source, target_filter, action_desc):
     if len(valid_targets) == 1:
         return valid_targets[0]
 
-    print(
-        f"Choose a target for {action_desc}: "
-        f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
+    choices = ", ".join(
+        f"({index}, {describe_target(target)})"
+        for index, target in enumerate(valid_targets)
     )
+    print(f"Choose a target for {action_desc}: [{choices}]")
     return valid_targets[prompt_target_index(len(valid_targets))]
 
 
@@ -107,9 +113,10 @@ def resolve_player_target(game, source, target, target_filter, action_desc):
 def describe_target(target):
     if isinstance(target, Minion):
         controller = target.owner.name if target.owner else "Unknown"
-        return (
+        return format_card(
+            target,
             f"{target.name}(ATK {target.atk}, HP {target.hp}, "
-            f"{controller}'s, Rested={target.rested})"
+            f"{controller}'s, Rested={target.rested})",
         )
     return f"{target.name}(HP {target.hp})"
 
@@ -117,6 +124,64 @@ def describe_target(target):
 def save_targets(source, targets):
     # lets later effects on the same card reference what an earlier effect targeted (e.g. saved:atk)
     source.saved_targets = list(targets)
+
+
+def resolve_effect_value(source, value):
+    if isinstance(value, str):
+        if value.startswith("count:"):
+            value = value.split(":", 1)[1]
+        if value in source.effect_state:
+            return source.effect_state[value]
+    return value
+
+
+def count(card_name, player="opponent", zone="discard", save_as="count"):
+    def resolver(game, source, target=None):
+        if player == "opponent":
+            counted_player = game.other_player(source.owner)
+        elif player in ("owner", "self"):
+            counted_player = source.owner
+        else:
+            counted_player = player
+
+        cards = getattr(counted_player, zone, [])
+        source.effect_state[save_as] = sum(
+            1 for card in cards if card.name == card_name
+        )
+        return True
+
+    return resolver
+
+
+def compare(left, operation, right, if_true, if_false=None):
+    if operation not in COMPARATORS:
+        raise ValueError(f"Unsupported comparison operator: {operation!r}")
+
+    def resolver(game, source, target=None):
+        left_value = resolve_effect_value(source, left)
+        right_value = resolve_effect_value(source, right)
+        branch = if_true if COMPARATORS[operation](left_value, right_value) else if_false
+        if branch is None:
+            return True
+        if isinstance(branch, Effect):
+            branch.resolve(game, source, target)
+        else:
+            branch(game, source, target)
+        return True
+
+    return resolver
+
+
+def compare_filter(attribute, operation, value):
+    if operation not in COMPARATORS:
+        raise ValueError(f"Unsupported comparison operator: {operation!r}")
+
+    def filter_fn(target, source):
+        left_value = getattr(target, attribute)
+        right_value = resolve_effect_value(source, value)
+        return COMPARATORS[operation](left_value, right_value)
+
+    return filter_fn
 
 
 def resolve_targets(game, source, target, target_filter, count=1, hit_all=False, action_desc="target", include_players=True):
@@ -146,10 +211,11 @@ def resolve_targets(game, source, target, target_filter, count=1, hit_all=False,
         if len(valid_targets) == 1:
             chosen = valid_targets[0]
         else:
-            print(
-                f"Choose a target for {action_desc}: "
-                f"{[(index, describe_target(t)) for index, t in enumerate(valid_targets)]}"
+            choices = ", ".join(
+                f"({index}, {describe_target(current_target)})"
+                for index, current_target in enumerate(valid_targets)
             )
+            print(f"Choose a target for {action_desc}: [{choices}]")
             chosen = valid_targets[prompt_target_index(len(valid_targets))]
         chosen_targets.append(chosen)
         valid_targets.remove(chosen)
@@ -157,7 +223,83 @@ def resolve_targets(game, source, target, target_filter, count=1, hit_all=False,
     return chosen_targets
 
 
+_MATH_BIN_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+_MATH_UNARY_OPS = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+# matches named references (e.g. "any:get", "saved:atk", "count") inside an amount formula;
+# plain numeric literals are left alone for the arithmetic evaluator below
+_AMOUNT_REFERENCE_RE = re.compile(r"[A-Za-z_][\w:]*")
+
+
+def _eval_math_node(node):
+    if isinstance(node, ast.Expression):
+        return _eval_math_node(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in _MATH_BIN_OPS:
+        return _MATH_BIN_OPS[type(node.op)](_eval_math_node(node.left), _eval_math_node(node.right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _MATH_UNARY_OPS:
+        return _MATH_UNARY_OPS[type(node.op)](_eval_math_node(node.operand))
+    raise ValueError(f"Unsupported amount expression: {ast.dump(node)}")
+
+
+def evaluate_math_expression(expression):
+    # only arithmetic (+ - * / // % **) on numeric literals is allowed, no names/calls/attrs,
+    # so a card's amount formula can't execute arbitrary code
+    tree = ast.parse(expression, mode="eval")
+    return _eval_math_node(tree.body)
+
+
+def _resolve_any_get(source):
+    stored = getattr(source, 'any', None)
+    if stored is None:
+        raise ValueError(f"{format_card(source)} has no saved amount for any:get.")
+    return int(stored)
+
+
+def _resolve_saved(source, attr):
+    saved = getattr(source, 'saved_targets', None)
+    if not saved:
+        raise ValueError(f"{format_card(source)} has no saved targets for saved:{attr}.")
+    return sum(int(getattr(saved_target, attr, 0)) for saved_target in saved)
+
+
+def _resolve_amount_reference(source, token):
+    # resolves a single named reference used inside an amount string or formula
+    if token == "any:get":
+        return _resolve_any_get(source)
+    if token.startswith("saved:"):
+        return _resolve_saved(source, token.split(":", 1)[1])
+
+    value = resolve_effect_value(source, token)
+    if not isinstance(value, (int, float)):
+        raise ValueError(f"Unknown amount reference '{token}' for {format_card(source)}.")
+    return value
+
+
 def resolve_effect_amount(source, amount, *, max_value=None, label="cards", prompt_text=None):
+    if isinstance(amount, str) and any(ch in amount for ch in "+-*/"):
+        # e.g. "2*any:get" or "saved:atk+1" - substitute named references with their
+        # resolved numbers, then evaluate the arithmetic
+        expression = _AMOUNT_REFERENCE_RE.sub(
+            lambda m: str(_resolve_amount_reference(source, m.group(0))), amount
+        )
+        return evaluate_math_expression(expression)
+
+    if isinstance(amount, str) and not amount.startswith(("any", "saved:")):
+        # lets an amount reference a value stashed by an earlier effect, e.g. count()
+        amount = resolve_effect_value(source, amount)
+
     if isinstance(amount, str) and amount.startswith("any:"):
         mode = amount.split(":", 1)[1]
         if mode == "set":
@@ -169,32 +311,19 @@ def resolve_effect_amount(source, amount, *, max_value=None, label="cards", prom
                 prompt_text = f"Choose a number from 0 to {max_value}"
 
             print(f"{prompt_player.name if prompt_player is not None else 'Player'}, {prompt_text}.")
-            selection = input(f"Enter a number from 0 to {max_value}: ").strip()
-            try:
-                chosen = int(selection)
-            except ValueError:
+            chosen = player_input.prompt_amount(f"Enter a number from 0 to {max_value}: ", max_value)
+            if chosen is None:
                 print("Invalid amount. No cards removed.")
-                return 0
-
-            if chosen < 0 or chosen > max_value:
-                print(f"Amount must be between 0 and {max_value}.")
                 return 0
 
             setattr(source, 'any', chosen)
             return chosen
 
         if mode == "get":
-            stored = getattr(source, 'any', None)
-            if stored is None:
-                raise ValueError(f"{source.name} has no saved amount for any:get.")
-            return int(stored)
+            return _resolve_any_get(source)
 
     if isinstance(amount, str) and amount.startswith("saved:"):
-        attr = amount.split(":", 1)[1]
-        saved = getattr(source, 'saved_targets', None)
-        if not saved:
-            raise ValueError(f"{source.name} has no saved targets for saved:{attr}.")
-        return sum(int(getattr(saved_target, attr, 0)) for saved_target in saved)
+        return _resolve_saved(source, amount.split(":", 1)[1])
 
     if amount == 'any':
         if max_value is None:
@@ -222,7 +351,7 @@ def draw_cards(amount, player=None):
             for _ in range(event_data.amount):
                 drawn_card = drawing_player.draw()
                 if drawn_card:
-                    print(f"{drawing_player.name} draws {drawn_card.name}.")
+                    print(f"{drawing_player.name} draws {format_card(drawn_card)}.")
                 else:
                     print(f"{drawing_player.name} cannot draw a card. Deck is empty.")
 
@@ -238,7 +367,7 @@ def draw_cards(amount, player=None):
 
     return resolver
 
-def remove_from_zone(player, amount, zone, destination, choice=None, target_filter=None):
+def change_zones(player, amount, zone, destination, choice=None, target_filter=None):
     def resolver(game, source, target=None):
         nonlocal zone
 
@@ -247,29 +376,19 @@ def remove_from_zone(player, amount, zone, destination, choice=None, target_filt
                 return player.deck.cards
             return getattr(player, zone)
 
+        def describe_player_zone(zone_player, zone):
+            controller = game.field_controller(source)
+            if zone_player is controller:
+                player_label = "your"
+            elif zone_player is game.other_player(controller):
+                player_label = "opponent's"
+            else:
+                player_label = f"{zone_player.name}'s"
+            zone_label = "discard pile" if zone == "discard" else zone
+            return f"{player_label} {zone_label}"
+
         def move_card_to_destination(player, card, zone, destination):
-            current_zone_cards = get_deck_cards(player, zone)
-            if card not in current_zone_cards:
-                return
-
-            getattr(player, f'remove_from_{zone}')(card)
-
-            if destination == 'banish':
-                player.add_to_banish(card)
-                print(f"{player.name} banishes {card.name} from {zone} to banish.")
-            elif destination == 'discard':
-                player.add_to_discard(card)
-                print(f"{player.name} discards {card.name} from {zone}.")
-            elif destination == 'deck:top':
-                player.deck.cards.insert(0, card)
-                print(f"{player.name} places {card.name} from {zone} on top of the deck.")
-            elif destination == 'deck:bottom':
-                player.deck.cards.append(card)
-                print(f"{player.name} places {card.name} from {zone} on the bottom of the deck.")
-            elif destination == 'deck:shuffle':
-                player.deck.cards.append(card)
-                random.shuffle(player.deck.cards)
-                print(f"{player.name} places {card.name} from {zone} into the deck and shuffles.")
+            game.change_zone(player, [card], zone, destination, event_controller=game.field_controller(source))
 
         def remove_card(player, amount, zone, destination, choice='all', target_filter=None):
             zone_cards = get_deck_cards(player, zone)
@@ -316,21 +435,27 @@ def remove_from_zone(player, amount, zone, destination, choice=None, target_filt
                     return
 
                 if choice == 'player':
-                    print("Your hand:")
+                    selection_zone = describe_player_zone(player, zone)
+                    print(f"{selection_zone.capitalize()}:")
                     for index, card in enumerate(zone_cards):
-                        print(f"{index}: {card.name}")
-                    card_index = input("Choose a card from your hand: ").strip()
-                    card = zone_cards[int(card_index)] if card_index.isdigit() and 0 <= int(card_index) < len(zone_cards) else None
+                        print(f"{index}: {format_card(card)}")
+                    card_choice = player_input.prompt_optional_index(
+                        len(zone_cards), f"Choose a card from {selection_zone}: "
+                    )
+                    card = zone_cards[card_choice] if card_choice is not None else None
                     if not card:
                         print("Invalid choice.")
                 elif choice == 'opponent':
-                    print("Opponent's hand:")
                     opponent = game.other_player(player)
+                    selection_zone = describe_player_zone(opponent, zone)
+                    print(f"{selection_zone.capitalize()}:")
                     opponent_zone_cards = get_deck_cards(opponent, zone)
                     for index, card in enumerate(opponent_zone_cards):
-                        print(f"{index}: {card.name}")
-                    card_index = input("Choose a card from opponent's hand: ").strip()
-                    card = opponent_zone_cards[int(card_index)] if card_index.isdigit() and 0 <= int(card_index) < len(opponent_zone_cards) else None
+                        print(f"{index}: {format_card(card)}")
+                    card_choice = player_input.prompt_optional_index(
+                        len(opponent_zone_cards), f"Choose a card from {selection_zone}: "
+                    )
+                    card = opponent_zone_cards[card_choice] if card_choice is not None else None
                     if not card:
                         print("Invalid choice.")
                 elif choice == 'random':
@@ -361,7 +486,7 @@ def deal_damage(amount, target_filter=None, hit_all=False):
 
         targets = resolve_targets(
             game, source, target, target_filter, hit_all=hit_all,
-            action_desc=f"{source.name} to deal {resolved_amount} damage",
+            action_desc=f"{format_card(source)} to deal {resolved_amount} damage",
         )
         if not targets:
             return False
@@ -383,6 +508,23 @@ def deal_damage(amount, target_filter=None, hit_all=False):
 
     return resolver
 
+def replace_damage_with_status(status_name, target_filter=None, zone="deck"):
+    def resolver(game, source, target=None):
+        event_data = getattr(source, 'intercepted_event', None)
+        if event_data is None:
+            return False
+
+        add_status(
+            status_name,
+            event_data.amount,
+            target_filter=target_filter,
+            zone=zone,
+        )(game, source, target=target)
+        event_data.cancelled = True
+        return True
+
+    return resolver
+
 def heal(amount, target_filter=None, hit_all=False):
     def resolver(game, source, target=None):
         resolved_amount = resolve_effect_amount(source, amount, label="healing")
@@ -392,7 +534,7 @@ def heal(amount, target_filter=None, hit_all=False):
         effective_target = target if target is not None and hasattr(target, 'hp') else None
         targets = resolve_targets(
             game, source, effective_target, target_filter, hit_all=hit_all,
-            action_desc=f"{source.name} to heal {resolved_amount}",
+            action_desc=f"{format_card(source)} to heal {resolved_amount}",
         )
         if not targets:
             return False
@@ -413,7 +555,7 @@ def heal(amount, target_filter=None, hit_all=False):
 
             healed_target = event_data.target
             healed_target.hp += event_data.amount
-            print(f"{source.owner.name} heals {event_data.amount} HP on {healed_target.name}. Current HP: {healed_target.hp}")
+            print(f"{source.owner.name} heals {event_data.amount} HP on {format_card(healed_target)}. Current HP: {healed_target.hp}")
 
         return True
 
@@ -423,40 +565,35 @@ def peer(amount):
     def resolver(game, source, target=None):
         player = source.owner
         if player is None:
-            print(f"{source.name} has no owner. Cannot peer.")
+            print(f"{format_card(source)} has no owner. Cannot peer.")
             return False
 
         deck_cards = player.deck.cards
         top_cards = deck_cards[-amount:]
 
         # Select cards to discard
-        print(f"Top {amount} cards of {player.name}'s deck: {[(index, c.name) for index, c in enumerate(top_cards)]}")
+        print(f"Top {amount} cards of {player.name}'s deck: {format_card_options(top_cards)}")
 
-        discard_input = input("Enter the indices of cards to discard, separated by spaces: ").strip()
-        discard_cards = []
-        if discard_input:
-            discard_indices = [int(i) for i in discard_input.split() if i.isdigit()]
-            discard_cards = [top_cards[i] for i in discard_indices if 0 <= i < len(top_cards)]
+        discard_indices = player_input.prompt_index_list("Enter the indices of cards to discard, separated by spaces: ")
+        discard_cards = [top_cards[i] for i in discard_indices if 0 <= i < len(top_cards)]
 
-        for card in discard_cards:
-            if card in deck_cards:
-                deck_cards.remove(card)
-                player.discard.append(card)
+        if discard_cards:
+            game.change_zone(player, discard_cards, 'deck', 'discard')
 
         # re-order remaining cards
         remaining_cards = [c for c in top_cards if c not in discard_cards]
 
         if remaining_cards:
-            print(f"Remaining cards to put back on top: {[(index, c.name) for index, c in enumerate(remaining_cards)]}")
-            order_input = input("Enter the new order of remaining cards by indices, separated by spaces: ").strip()
-            if order_input:
-                order_indices = [int(i) for i in order_input.split() if i.isdigit()]
-                ordered_remaining = [remaining_cards[i] for i in order_indices if 0 <= i < len(remaining_cards)]
+            print(f"Remaining cards to put back on top: {format_card_options(remaining_cards)}")
+            order_indices = player_input.prompt_index_list(
+                "Enter the new order of remaining cards by indices, separated by spaces: "
+            )
+            ordered_remaining = [remaining_cards[i] for i in order_indices if 0 <= i < len(remaining_cards)]
 
-                if len(ordered_remaining) == len(remaining_cards):
-                    # Keep the rest of the deck unchanged, but replace the top segment with the new order.
-                    deck_cards = deck_cards[:-len(remaining_cards)] + ordered_remaining
-                    player.deck.cards = deck_cards
+            if len(ordered_remaining) == len(remaining_cards):
+                # Keep the rest of the deck unchanged, but replace the top segment with the new order.
+                deck_cards = deck_cards[:-len(remaining_cards)] + ordered_remaining
+                player.deck.cards = deck_cards
 
         return True
 
@@ -468,7 +605,7 @@ def play_card():
         # cards played from your hand), so find whoever actually has it in hand
         player = next((p for p in game.players if source in p.hand), None)
         if player is None:
-            print(f"{source.name} is not in any player's hand and cannot be played.")
+            print(f"{format_card(source)} is not in any player's hand and cannot be played.")
             return False
 
         # this is a forced play from the card's own effect, not a priority-based
@@ -484,9 +621,27 @@ def cancel_event():
     def resolver(game, source, target=None):
         event_data = getattr(source, 'intercepted_event', None)
         if event_data is None:
-            print(f"{source.name} has no pending event to cancel.")
+            print(f"{format_card(source)} has no pending event to cancel.")
             return False
         event_data.cancelled = True
+        return True
+
+    return resolver
+
+def negate_card():
+    # removes the card this was played in response to from the pile and discards it,
+    # so its 'resolve' effects never run
+    def resolver(game, source, target=None):
+        event_data = getattr(source, 'intercepted_event', None)
+        card = getattr(event_data, 'card', None)
+        if card is None or card not in game.pile:
+            print(f"{format_card(source)} has no card in the pile to discard.")
+            return False
+
+        game.pile.remove(card)
+        print(f"{format_card(source)} discards {format_card(card)} from the pile.")
+        controller = game.field_controller(card)
+        game.change_zone(controller, [card], 'field', 'discard', destination_owner=card.owner)
         return True
 
     return resolver
@@ -514,7 +669,7 @@ def change_attack(amount, reduce=False, temp=True, target_filter=None, hit_all=F
 
         targets = resolve_targets(
             game, source, target, target_filter, hit_all=hit_all,
-            action_desc=f"{source.name} to change ATK", include_players=False,
+            action_desc=f"{format_card(source)} to change ATK", include_players=False,
         )
         if not targets:
             return False
@@ -527,7 +682,7 @@ def change_attack(amount, reduce=False, temp=True, target_filter=None, hit_all=F
                 minion.static_atk_modifiers.append(lambda m, delta=delta: delta)
             else:
                 minion.atk += delta
-            print(f"{minion.name}'s ATK changes by {delta}. Current ATK: {minion.atk}")
+            print(f"{format_card(minion, f'{minion.name}\'s ATK changes by {delta}. Current ATK: {minion.atk}')}")
 
         return True
 
@@ -543,7 +698,7 @@ def change_mode(new_mode, amount=1, target_filter=None, hit_all=False):
 
         targets = resolve_targets(
             game, source, target, target_filter, count=resolved_amount, hit_all=hit_all,
-            action_desc=f"{source.name} to {new_mode}", include_players=False,
+            action_desc=f"{format_card(source)} to {new_mode}", include_players=False,
         )
         if not targets:
             return False
@@ -557,13 +712,33 @@ def change_mode(new_mode, amount=1, target_filter=None, hit_all=False):
 
     return resolver
 
+def attack(attacker, target):
+    def resolver(game, source, target_override=None):
+        if attacker == "saved_target":
+            saved_targets = getattr(source, "saved_targets", [])
+            resolved_attacker = saved_targets[-1] if saved_targets else None
+        else:
+            resolved_attacker = attacker
+
+        if target == "trigger_target":
+            resolved_target = getattr(source, "trigger_target", None)
+        else:
+            resolved_target = target
+
+        if resolved_attacker is None or resolved_target is None:
+            return False
+
+        return game.minion_attack(resolved_attacker, resolved_target)
+
+    return resolver
+
 def freeze(amount=1, target_filter=None, hit_all=False):
     def resolver(game, source, target=None):
         resolved_amount = resolve_effect_amount(source, amount, label="targets")
 
         targets = resolve_targets(
             game, source, target, target_filter, count=resolved_amount, hit_all=hit_all,
-            action_desc=f"{source.name} to freeze", include_players=False,
+            action_desc=f"{format_card(source)} to freeze", include_players=False,
         )
         if not targets:
             return False
@@ -572,7 +747,33 @@ def freeze(amount=1, target_filter=None, hit_all=False):
 
         for minion in targets:
             minion.frozen = True
-            print(f"{minion.name} is now frozen.")
+            print(f"{format_card(minion)} is now frozen.")
+
+        return True
+
+    return resolver
+
+def poison(target_filter=None):
+    def resolver(game, source, target=None):
+        player = resolve_player_target(
+            game,
+            source,
+            target,
+            target_filter,
+            f"{format_card(source)} to check poison",
+        )
+        if player is None:
+            return False
+
+        poison_count = sum(
+            1
+            for card in player.discard
+            if isinstance(card, Status) and card.name == "Poison"
+        )
+        if poison_count > player.hp:
+            print(
+                f"{player.name} loses the game to poison "
+            )
 
         return True
 
@@ -583,28 +784,15 @@ def freeze(amount=1, target_filter=None, hit_all=False):
 #earth
 #water
 #air
-def shuffle_air(player, card=None):
+def shuffle_air(player):
     def resolver(game, source, target=None):
 
         def shuffle_air_cards(target_player):
-            air_cards = [c for c in target_player.deck.cards if c.element == 'Air']
-
-            for c in air_cards:
-                target_deck = target_player.deck.cards
-                target_deck.append(c)
-                target_player.discard.remove(c)
-            random.shuffle(target_player.deck.cards)
-
-            if card == 'updraft':
-                if len(air_cards) > 5:
-                    remove_from_zone(
-                        "opponent",
-                        1,
-                        "field",
-                        "deck:shuffle",
-                        choice="player",
-                        target_filter="minion_only",
-                    )(game, source, target)
+            air_cards = [c for c in target_player.discard if c.element == 'Air']
+            game.change_zone(
+                target_player, air_cards, 'discard', 'deck:shuffle',
+                event_controller=game.field_controller(source),
+            )
 
         if player == 'both':
             target_player = None
@@ -656,7 +844,7 @@ def create_status_card(owner, name, type='Status', text='', element='', zone='',
     return status
 
 # Status Effects:
-def add_status(status_name, amount, target_filter=None, zone="deck"):
+def add_status(status_name, amount, target_filter=None, zone="deck", hit_all=False):
     status_defs = {
         "Air": {
             "element": "Air",
@@ -677,7 +865,7 @@ def add_status(status_name, amount, target_filter=None, zone="deck"):
             "shuffle": True,
         },
         "Poison": {
-            "element": "Nature",
+            "element": "Earth",
             "text": "Take 1 damage, Draw, Combo",
             "action": "poison",
             "shuffle": True,
@@ -691,42 +879,62 @@ def add_status(status_name, amount, target_filter=None, zone="deck"):
 
     def resolver(game, source, target=None):
         resolved_amount = resolve_effect_amount(source, amount, label="status cards")
-        target_player = resolve_player_target(
-            game,
-            source,
-            target,
-            target_filter,
-            f"{source.name} to {config['action']}",
-        )
-        if target_player is None:
+        if hit_all and target is None:
+            filters = normalize_filters("player_only") + normalize_filters(target_filter)
+            target_players = [
+                player for player in game.players
+                if is_valid_target(player, source, filters)
+            ]
+        else:
+            target_player = resolve_player_target(
+                game,
+                source,
+                target,
+                target_filter,
+                f"{format_card(source)} to {config['action']}",
+            )
+            target_players = [target_player] if target_player is not None else []
+
+        if not target_players:
             return False
 
-        if resolved_amount > 0:
-            from .game import ResponseEvent, EventData
+        from .game import ResponseEvent, EventData
 
-            # a responder (e.g. Disperse) may cancel this pending status add via
-            # cancel_event(), or adjust its amount instead of cancelling outright
-            event_data = EventData(
-                amount=resolved_amount,
-                target_player=target_player,
-                status_name=status_name,
-            )
-            game.check_interception(ResponseEvent.STATUS_ADDED, source.owner, event_data)
-            if event_data.cancelled:
-                return True
-            resolved_amount = event_data.amount
+        for target_player in target_players:
+            target_amount = resolved_amount
+            if target_amount > 0:
+                event_data = EventData(
+                    amount=target_amount,
+                    target_player=target_player,
+                    status_name=status_name,
+                )
+                game.check_interception(ResponseEvent.STATUS_ADDED, source.owner, event_data)
+                if event_data.cancelled:
+                    continue
+                target_amount = event_data.amount
 
-        for _ in range(resolved_amount):
-            create_status_card(
-                owner=target_player,
-                name=status_name,
-                element=config["element"],
-                text=config["text"],
-                zone=zone,
-            )
-            if config["shuffle"]:
-                target_player.deck.shuffle()
-        print(f"{target_player.name} received {resolved_amount} '{status_name}' in their {zone}.")
+            for _ in range(target_amount):
+                status = create_status_card(
+                    owner=target_player,
+                    name=status_name,
+                    element=config["element"],
+                    text=config["text"],
+                    zone=zone,
+                )
+                if config["shuffle"]:
+                    target_player.deck.shuffle()
+                controller = game.field_controller(source)
+                for player in game.players:
+                    for field_card in player.field:
+                        game.trigger_effects(
+                            field_card,
+                            "status_added",
+                            target=status,
+                            event_controller=controller,
+                            event_zone=zone,
+                        )
+            status_label = format_card_text(status_name, config["element"], "Status")
+            print(f"{target_player.name} received {target_amount} '{status_label}' in their {zone}.")
         return True
 
     return resolver

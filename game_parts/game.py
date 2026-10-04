@@ -2,12 +2,13 @@ import random
 from enum import Enum
 
 #from card.card import Card
-from game_parts.card import Minion
+from game_parts.card import Minion, format_card, format_card_list, format_card_options
 from game_parts.player import Player
+from game_parts import input as player_input
 
 
 def describe_minion(minion):
-    return f"{minion.name}(ATK {minion.atk}, HP {minion.hp}, Rested={minion.rested})"
+    return format_card(minion, f"{minion.name}(ATK {minion.atk}, HP {minion.hp}, Rested={minion.rested})")
 
 
 class Game:
@@ -87,10 +88,21 @@ class Game:
         self.phase = Phase.END
         self.active_player.power_played = None
         self.active_player.non_power_played = None
-        #end turn actions for the active player (in all zones) then inactive player
+
+        # event_controller is the player whose turn is ending, so effects can use
+        # 'end_turn:owner' / 'end_turn:opponent' to fire only on a specific side's turn
+        ending_player = self.active_player
         for player in self.players:
             for card in player.field + player.hand + player.discard:
-                self.trigger_effects(card, 'end_turn')
+                self.trigger_effects(card, 'end_turn', event_controller=ending_player)
+
+        while len(self.active_player.hand) > 7:
+            print(f"{self.active_player.name}'s hand: {format_card_options(self.active_player.hand)}")
+            selection = player_input.prompt_index(
+                len(self.active_player.hand), "Enter the index of the card to discard: "
+            )
+            discarded_card = self.active_player.hand[selection]
+            self.change_zone(self.active_player, [discarded_card], 'hand', 'discard')
 
         self.turn += 1
         self.start_turn(); #Immediatley start the next turn
@@ -111,19 +123,19 @@ class Game:
             print(f"It is not {player.name}'s priority. Cannot play card.")
             return False
         if card not in player.hand:
-            print(f"Card {card} not found in {player.name}'s hand. Cannot play.")
+            print(f"Card {format_card(card)} not found in {player.name}'s hand. Cannot play.")
             return False
         if self.phase == Phase.MAIN:
             if card.type == 'Power':
                 if player.power_played:
-                    print(f'{player.name} has already played a power card this turn: {player.power_played.name}')
+                    print(f'{player.name} has already played a power card this turn: {format_card(player.power_played)}')
                     return False
             else:
                 if player.non_power_played:
-                    print(f'{player.name} has already played a non-power card this turn: {player.non_power_played.name}')
+                    print(f'{player.name} has already played a non-power card this turn: {format_card(player.non_power_played)}')
                     return False
         if 'Unplayable' in card.text:
-            print(f"Card {card.name} is unplayable. Cannot play.")
+            print(f"Card {format_card(card)} is unplayable. Cannot play.")
             return False
         
 
@@ -139,21 +151,21 @@ class Game:
 
             matching_power_cards = [c for c in player.hand if is_valid_reveal(c)]
             if not matching_power_cards:
-                print(f"{player.name} has no valid power cards in hand to reveal for {card.name}. Cannot play.")
+                print(f"{player.name} has no valid power cards in hand to reveal for {format_card(card)}. Cannot play.")
                 return False
 
-            print(f"Reveal a power: {[(index, c.name) for index, c in enumerate(matching_power_cards)]}")
-            selection = input("Enter the index of the power card to reveal: ").strip()
-            try:
-                selected_power_card = matching_power_cards[int(selection)]
-            except (ValueError, IndexError):
+            print(f"Reveal a power: {format_card_options(matching_power_cards)}")
+            selection = player_input.prompt_optional_index(
+                len(matching_power_cards), "Enter the index of the power card to reveal: "
+            )
+            if selection is None:
                 print("Invalid selection. Cannot play card.")
                 return False
-            print(f"{player.name} reveals {selected_power_card.name} to play {card.name}.")
+            selected_power_card = matching_power_cards[selection]
+            print(f"{player.name} reveals {format_card(selected_power_card)} to play {format_card(card)}.")
 
         # Manage Player Data
-        player.remove_from_hand(card)
-        player.add_to_field(card)
+        self.change_zone(player, [card], 'hand', 'field', event_controller=player)
         # minions can't attack the turn they're played unless they have Initiative
         if isinstance(card, Minion) and 'Initiative' not in card.text:
             card.summoning_sick = True
@@ -166,33 +178,34 @@ class Game:
         # Build Pile
         self.pile.append(card)
 
-        # Activate any "card_played" triggered effects of cards on the field
-        # Active player's field gets triggered first, then inactive player's field.
-        for field_player in [self.active_player, self.inactive_player]:
-            for field_card in field_player.field:
-                self.trigger_effects(field_card, 'card_played', target=card)
-
-        
-        # only the outermost play_card owns restoring original_phase; a card played
-        # mid-resolution of another cycle (e.g. a trap fired by a STATUS_ADDED check)
-        # must not clobber the enclosing call's bookkeeping
         is_outermost_phase = self.original_phase is None
+        phase_to_restore = self.phase
         if is_outermost_phase:
-            self.original_phase = self.phase
+            self.original_phase = phase_to_restore
 
-        # Trigger response cycle
-        event_data = EventData(card=card)
-        if self.response_cycle(ResponseEvent.CARD_PLAYED, player, event_data, allow_combo=allow_combo):
+        try:
+            # Activate any "card_played" triggered effects of cards on the field.
+            # Active player's field gets triggered first, then inactive player's field.
+            for field_player in [self.active_player, self.inactive_player]:
+                for field_card in field_player.field:
+                    self.trigger_effects(
+                        field_card,
+                        'card_played',
+                        target=card,
+                        event_controller=player,
+                    )
+
+            event_data = EventData(card=card)
+            if self.response_cycle(ResponseEvent.CARD_PLAYED, player, event_data, allow_combo=allow_combo):
+                return True
+
+            self.resolve_pile()
             return True
+        finally:
+            if is_outermost_phase:
+                self.phase = phase_to_restore
+                self.original_phase = None
 
-        # End Chain
-        self.resolve_pile()
-
-        self.phase = self.original_phase
-        if is_outermost_phase:
-            self.original_phase = None
-
-        return True
 
     def resolve_pile(self):
         print('Resolving pile')
@@ -203,26 +216,24 @@ class Game:
         # once even when that happens.
         while self.pile:
             card = self.pile.pop()
-            print(f"Resolving card: {card.name}")
+            print(f"Resolving card: {format_card(card)}")
 
-            if card.type == 'Minion' or card.type == 'Relic':
-                # Effect resolution
+            # Effect resolution
+            self.trigger_effects(card, 'resolve')
 
-                print(f'Card {card.name} resolved.')
-            else:
-                # Effect resolution
-                self.trigger_effects(card, 'resolve')
-                
-                # Determine destination
-                self.field_controller(card).remove_from_field(card)
-                if card.type == 'Spell' or card.type == 'Trap':
+            if card.type != 'Minion' and card.type != 'Relic':
+                # Determine destination; controller and owner can differ (e.g. opponent-owned
+                # cards played from your hand) so the card leaves the controller's field but
+                # lands in its owner's discard/banish
+                controller = self.field_controller(card)
+                if card.type in ('Spell', 'Trap', 'Reaction'):
                     if 'Exhort' in card.text:
-                        print(f'Card {card.name} exhorted')
-                        card.owner.add_to_banish(card)
+                        print(f'Card {format_card(card)} exhorted')
+                        self.change_zone(controller, [card], 'field', 'banish', destination_owner=card.owner)
                     else:
-                        card.owner.add_to_discard(card)
+                        self.change_zone(controller, [card], 'field', 'discard', destination_owner=card.owner)
                 elif card.type == 'Status' or card.type == 'Power':
-                    card.owner.add_to_banish(card) 
+                    self.change_zone(controller, [card], 'field', 'banish', destination_owner=card.owner)
 
             # resolving this card may have emptied a deck; reshuffle before continuing the pile
             for player in self.players:
@@ -295,6 +306,20 @@ class Game:
 
     def take_damage(self, source, target, amount):
         if hasattr(target, 'hp'):
+            from .game import EventData
+
+            event_data = EventData(amount=amount, target=target)
+            previous_intercepted_event = getattr(source, 'intercepted_event', None)
+            source.intercepted_event = event_data
+            if hasattr(source, 'trigger_target'):
+                source.trigger_target = target
+            self.trigger_effects(source, 'would_deal_damage', target=target)
+            source.intercepted_event = previous_intercepted_event
+
+            if event_data.cancelled:
+                return
+
+            amount = event_data.amount
             target.hp -= amount
 
             # trigger source's 'deals_damage' effects, trigger_target is the damaged target
@@ -308,7 +333,7 @@ class Game:
             self.trigger_effects(target, 'takes_damage', target=source)
 
         else:
-            print(f"Target {target} does not have HP and cannot take damage.")
+            print(f"Target {format_card(target)} does not have HP and cannot take damage.")
 
         if target.hp <= 0:
             if isinstance(target, Minion):
@@ -328,15 +353,20 @@ class Game:
             print(f"Only {self.active_player.name}'s minions can attack this turn.")
             return False
         if minion.summoning_sick:
-            print(f"{minion.name} cannot attack the turn it was played.")
+            print(f"{format_card(minion)} cannot attack the turn it was played.")
             return False
 
         defending_player = self.other_player(controller)
-        print(f"{minion.name} attacks {target.name}")
+        print(f"{format_card(minion)} attacks {format_card(target)}")
         minion.rested = True
 
         # trigger minion's 'attacks' effects, trigger_target is the target being attacked
-        self.trigger_effects(minion, 'attacks', target=target)
+        previous_trigger_target = minion.trigger_target
+        minion.trigger_target = target
+        try:
+            self.trigger_effects(minion, 'attacks', target=target)
+        finally:
+            minion.trigger_target = previous_trigger_target
 
         # Opponent Blocks
         # an opponent may block the attacking minion with any one of their un-rested minions,
@@ -345,22 +375,35 @@ class Game:
             m for m in defending_player.field
             if isinstance(m, Minion) and not m.rested
         ]
-        print(
-            "Available blockers: "
-            f"{[(index, describe_minion(m)) for index, m in enumerate(available_blockers)]}"
+        blocker_options = ", ".join(
+            f"({index}, {describe_minion(blocker)})"
+            for index, blocker in enumerate(available_blockers)
         )
+        print(f"Available blockers: [{blocker_options}]")
         if available_blockers:
-            blocker_choice = input("Enter blocker index, or type 'None': ").strip()
-            if blocker_choice.lower() != "none":
-                try:
-                    blocker = available_blockers[int(blocker_choice)]
-                except (ValueError, IndexError):
-                    print("Invalid blocker index. No blocker selected.")
-                else:
-                    target = blocker
+            blocker_index = player_input.prompt_optional_index(
+                len(available_blockers), "Enter blocker index, or type 'None': "
+            )
+            if blocker_index is None:
+                print("Invalid blocker index. No blocker selected.")
+            else:
+                blocker = available_blockers[blocker_index]
+                blocker.rested = True
+                target = blocker
 
+                previous_block_target = blocker.trigger_target
+                blocker.trigger_target = minion
+                try:
                     self.trigger_effects(blocker, 'blocks', target=minion)
+                finally:
+                    blocker.trigger_target = previous_block_target
+
+                previous_blocked_target = minion.trigger_target
+                minion.trigger_target = blocker
+                try:
                     self.trigger_effects(minion, 'blocked', target=blocker)
+                finally:
+                    minion.trigger_target = previous_blocked_target
 
         # Post Blocker Logic
         if isinstance(target, Minion):
@@ -370,7 +413,8 @@ class Game:
 
         return True
 
-    def trigger_effects(self, source, trigger, target=None):
+    def trigger_effects(self, source, trigger, target=None, event_controller=None, event_zone=None,
+                         event_zone_owner=None, event_origin_zone=None, event_destination_zone=None):
         def matches(effect_trigger):
             if effect_trigger == trigger:
                 return True
@@ -381,6 +425,80 @@ class Game:
             base_trigger, condition = effect_trigger.split(':', 1)
             if base_trigger != trigger:
                 return False
+
+            if trigger == 'status_added':
+                conditions = condition.split(':')
+                if conditions[0] != getattr(target, 'name', None):
+                    return False
+
+                for qualifier in conditions[1:]:
+                    if qualifier == 'by_controller':
+                        if event_controller is not self.field_controller(source):
+                            return False
+                    elif qualifier.startswith('zone='):
+                        if qualifier.split('=', 1)[1] != event_zone:
+                            return False
+                    else:
+                        return False
+                return True
+
+            if trigger == 'card_played':
+                conditions = condition.split(':')
+                if conditions[0] != getattr(target, 'name', None):
+                    return False
+
+                for qualifier in conditions[1:]:
+                    if qualifier == 'by_controller':
+                        if event_controller is not self.field_controller(source):
+                            return False
+                    else:
+                        return False
+                return True
+
+            if trigger == 'end_turn':
+                conditions = condition.split(':')
+                for qualifier in conditions:
+                    if qualifier == 'owner':
+                        if event_controller is not self.field_controller(source):
+                            return False
+                    elif qualifier == 'opponent':
+                        if event_controller is self.field_controller(source):
+                            return False
+                    else:
+                        return False
+                return True
+
+            if trigger == 'zone_changed':
+                # conditions[0] is the card/status name; remaining qualifiers can filter by
+                # origin zone (from=<zone>), destination zone (to=<zone>), whether the zone
+                # moved from/to belongs to this card's own controller or their opponent
+                # (owner_zone/opponent_zone), and who performed the move (by_controller/by_opponent)
+                conditions = condition.split(':')
+                if conditions[0] != getattr(target, 'name', None):
+                    return False
+
+                for qualifier in conditions[1:]:
+                    if qualifier.startswith('from='):
+                        if qualifier.split('=', 1)[1] != event_origin_zone:
+                            return False
+                    elif qualifier.startswith('to='):
+                        if qualifier.split('=', 1)[1] != event_destination_zone:
+                            return False
+                    elif qualifier == 'owner_zone':
+                        if event_zone_owner is not self.field_controller(source):
+                            return False
+                    elif qualifier == 'opponent_zone':
+                        if event_zone_owner is self.field_controller(source):
+                            return False
+                    elif qualifier == 'by_controller':
+                        if event_controller is not self.field_controller(source):
+                            return False
+                    elif qualifier == 'by_opponent':
+                        if event_controller is self.field_controller(source):
+                            return False
+                    else:
+                        return False
+                return True
 
             if condition == 'player':
                 return isinstance(target, Player)
@@ -433,6 +551,65 @@ class Game:
                         continue
                     self.trigger_effects(field_card, 'effect_triggered', target=source)
 
+    def change_zone(self, origin_owner, cards, origin, destination, destination_owner=None, event_controller=None):
+        # This is the single place any card should go through when it changes zones.
+        destination_owner = destination_owner or origin_owner
+        origin_cards = origin_owner.deck.cards if origin == 'deck' else getattr(origin_owner, origin)
+        destination_zone = destination.split(':', 1)[0]
+        moved_cards = []
+
+        for card in cards:
+            if card not in origin_cards:
+                continue
+
+            getattr(origin_owner, f'remove_from_{origin}')(card)
+
+            if destination == 'banish':
+                destination_owner.add_to_banish(card)
+                print(f"{destination_owner.name} banishes {format_card(card)} from {origin_owner.name}'s {origin} to banish.")
+            elif destination == 'hand':
+                destination_owner.add_to_hand(card)
+                print(f"{destination_owner.name} returns {format_card(card)} from {origin_owner.name}'s {origin} to their hand.")
+            elif destination == 'discard':
+                destination_owner.add_to_discard(card)
+                print(f"{destination_owner.name} discards {format_card(card)} from {origin_owner.name}'s {origin}.")
+            elif destination == 'field':
+                destination_owner.add_to_field(card)
+                print(f"{destination_owner.name} moves {format_card(card)} from {origin_owner.name}'s {origin} to their field.")
+            elif destination == 'deck:top':
+                destination_owner.deck.cards.insert(0, card)
+                print(f"{destination_owner.name} places {format_card(card)} from {origin_owner.name}'s {origin} on top of the deck.")
+            elif destination == 'deck:bottom':
+                destination_owner.deck.cards.append(card)
+                print(f"{destination_owner.name} places {format_card(card)} from {origin_owner.name}'s {origin} on the bottom of the deck.")
+            elif destination == 'deck:shuffle':
+                destination_owner.deck.cards.append(card)
+                print(f"{destination_owner.name} places {format_card(card)} from {origin_owner.name}'s {origin} into the deck.")
+
+            moved_cards.append(card)
+
+        if not moved_cards:
+            return
+
+        if destination == 'deck:shuffle':
+            random.shuffle(destination_owner.deck.cards)
+
+        # trigger effects
+        if event_controller is None:
+            event_controller = self.field_controller(moved_cards[0])
+        for player in self.players:
+            for field_card in player.field:
+                field_card.effect_state['zone_change_amount'] = len(moved_cards)
+                self.trigger_effects(
+                    field_card,
+                    'zone_changed',
+                    target=moved_cards[0],
+                    event_controller=event_controller,
+                    event_zone_owner=origin_owner,
+                    event_origin_zone=origin,
+                    event_destination_zone=destination_zone,
+                )
+
     def print_state(self):
         priority_name = self.priority_player.name if self.priority_player else "None"
         print(
@@ -441,7 +618,7 @@ class Game:
         )
         for player in self.players:
             print(
-                f"Player: {player.name}, Hand: {[card.name for card in player.hand]}, "
+                f"Player: {player.name}, Hand: {format_card_list(player.hand)}, "
                 f"Deck: {len(player.deck.cards)} cards"
             )
 
