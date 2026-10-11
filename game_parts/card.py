@@ -58,6 +58,17 @@ class Card:
     def create_instance(self):
         return copy.deepcopy(self)
 
+    def create_card_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+            "element": self.element,
+            "cost": self.cost,
+            "text": self.text,
+            "owner": self.owner.name
+        }
+
     def set_owner(self, player):
         self.owner = player
 
